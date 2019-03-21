@@ -1,15 +1,10 @@
 # rnaget Microservice
 
-Based on CanDIG demo projects: [OpenAPI variant service demo](https://github.com/ljdursi/openapi_calls_example), [Python Model Service] (https://github.com/CanDIG/python_model_service)
-This is a Proof-of-Concept implementation of the [GA4GH rnaget API] (https://github.com/ga4gh-rnaseq/schema), used to query and download RNA quantification matrix data
+Based on CanDIG demo projects: [OpenAPI variant service demo](https://github.com/ljdursi/openapi_calls_example), [Python Model Service](https://github.com/CanDIG/python_model_service)
+This is a Proof-of-Concept implementation of the [GA4GH rnaget API](https://github.com/ga4gh-rnaseq/schema), used to query and download RNA quantification matrix data
 
 ## Schema info
 For more information about the schemas used visit https://github.com/ga4gh-rnaseq/schema
-
-[![Build Status](https://travis-ci.org/CanDIG/python_model_service.svg?branch=master)](https://travis-ci.org/CanDIG/python_model_service)
-[![CodeFactor](https://www.codefactor.io/repository/github/CanDIG/python_model_service/badge)](https://www.codefactor.io/repository/github/CanDIG/python_model_service)
-[![PyUp](https://pyup.io/repos/github/CanDIG/python_model_service/shield.svg)](https://pyup.io/repos/github/CanDIG/python_model_service/)
-[![Quay.io](https://quay.io/repository/candig/python_model_service/status)](https://quay.io/repository/candig/python_model_service)
 
 ## Stack
 
