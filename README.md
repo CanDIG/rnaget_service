@@ -11,7 +11,7 @@ For more information about the schemas used visit https://github.com/ga4gh-rnase
 - [SQLAlchemy](http://sqlalchemy.org), using [Sqlite3](https://www.sqlite.org/index.html) for ORM
 - [Bravado-core](https://github.com/Yelp/bravado-core) for Python classes from the spec
 - [Dredd](https://dredd.readthedocs.io/en/latest/) and [Dredd-Hooks-Python](https://github.com/apiaryio/dredd-hooks-python) for testing
-- [HDF5] (https://www.hdfgroup.org/solutions/hdf5/) for matrix store & operations
+- [HDF5](https://www.hdfgroup.org/solutions/hdf5/) for matrix store & operations
 - Python 3
 - Pytest, tox
 - Travis-CI
