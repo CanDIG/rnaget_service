@@ -1,0 +1,7 @@
+connexion==2.2.0
+SQLAlchemy==1.2.17
+tornado==5.1.1
+decorator==4.3.2
+bravado-core==5.10.1
+pyyaml>=4.2b1
+h5py==2.9.0
