@@ -1,4 +1,5 @@
 connexion==2.2.0
+swagger-ui-bundle==0.0.3
 SQLAlchemy==1.2.17
 tornado==5.1.1
 decorator==4.3.2
