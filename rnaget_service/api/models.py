@@ -6,6 +6,7 @@ From Swagger file, with python classes via Bravado
 import pkg_resources
 import yaml
 from bravado_core.spec import Spec
+import json
 
 #
 # Read in the API definition, and parse it with Bravado
@@ -18,7 +19,7 @@ _BRAVADO_CONFIG = {
     'validate_requests': False,
     'validate_responses': False,
     'use_models': True,
-    'validate_swagger_spec': False
+    'validate_swagger_spec': True
 }
 
 _SWAGGER_SPEC = Spec.from_dict(
