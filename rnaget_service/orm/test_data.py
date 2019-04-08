@@ -93,7 +93,6 @@ def _load_expression(study_id):
     expression_file = os.path.join(expression_path, 'demo_quants.h5')
     # copyfile(local_file, expression_file)
 
-
     test_expression = {
         'id': expressionid,
         '__filepath__': expression_file,
