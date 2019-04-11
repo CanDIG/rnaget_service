@@ -355,7 +355,14 @@ paths:
 #          type: string
       - name: minExpression
         in: query
-        description: array of feature/threshold tuples
+        description: array of feature id, min threshold tuples
+        required: false
+        type: array
+        items:
+          type: string
+      - name: maxExpression
+        in: query
+        description: array of feature id, max treshold tuples
         required: false
         type: array
         items:

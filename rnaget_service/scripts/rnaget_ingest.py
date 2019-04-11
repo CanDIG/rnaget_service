@@ -1,6 +1,6 @@
 """
-Tool for converting quant data of various formats into HDF5 for RNAGET to use
-TODO: only works for a few quant output file formats so far. See available subclasses.
+Tool for converting a set of quant files into HDF5 for RNAGET to use
+TODO: only works for a few expression quant file formats so far. See available subclasses.
 """
 import h5py
 import numpy as np
@@ -8,6 +8,7 @@ import csv
 from datetime import datetime
 import os
 
+# Preset dimensions for sizable matrices
 __MAX_SAMPLES__ = 2000
 __MAX_FEATURES__ = 75000
 
@@ -19,13 +20,15 @@ class AbstractExpressionLoader(object):
 
     # root
     exp_matrix_name = "expression"
-    features_name = "axis/features"
-    samples_name = "axis/samples"
+    features_id = "axis/features"
+    samples_id = "axis/samples"
 
     # metadata
     counts_name = "metadata/counts"
     features_len = "metadata/features_length"
     features_eff_len = "metadata/features_eff_length"
+    features_name = "metadata/features_name"
+    features_accession = "metadata/features_accession"
 
     def __init__(self, hdf5file, datadir, study_id):
         try:
@@ -65,15 +68,15 @@ class AbstractExpressionLoader(object):
                 exp_matrix = self._file[self.exp_matrix_name]
                 i_qsize = exp_matrix.shape[0]
 
-            if self.samples_name not in self._file:
+            if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
-                    self.samples_name, (0,), maxshape=(__MAX_SAMPLES__,),
+                    self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
                     chunks=True, dtype="S20"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
             else:
-                samples = self._file[self.samples_name]
+                samples = self._file[self.samples_id]
                 if exp_matrix.attrs["source_file_type"] != self._source_file_type:
                     raise ValueError("Input file format incompatible with current hdf5 store.")
 
@@ -93,15 +96,15 @@ class AbstractExpressionLoader(object):
             exp_matrix.attrs["source_file_type"] = self._source_file_type
             i_qsize = 0
 
-            if self.samples_name not in self._file:
+            if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
-                    self.samples_name, (0,), maxshape=(__MAX_SAMPLES__,),
+                    self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
                     chunks=True, dtype="S20"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
             else:
-                samples = self._file[self.samples_name]
+                samples = self._file[self.samples_id]
                 if samples.attrs["source_file_type"] != self._source_file_type:
                     raise ValueError("Input file format incompatible with current hdf5 store.")
 
@@ -165,7 +168,7 @@ class AbstractExpressionLoader(object):
         ref_file = self._datadir+self._quantfilelist[0]
 
         if self.__MODE__ == 'r+':
-            if self.features_name in self._file:
+            if self.features_id in self._file:
                 return
             else:
                 features = self.setup_features_dataset(self._file)
@@ -214,7 +217,7 @@ class AbstractExpressionLoader(object):
 
     def setup_features_dataset(self, file):
         features = file.create_dataset(
-            self.features_name, (__MAX_SAMPLES__,), maxshape=(__MAX_FEATURES__,),
+            self.features_id, (__MAX_SAMPLES__,), maxshape=(__MAX_FEATURES__,),
             chunks=True, dtype="S20"
         )
         features.attrs["created"] = str(datetime.now())
@@ -247,12 +250,6 @@ class AbstractExpressionLoader(object):
             col_idx = int(name)
         return col_idx
 
-    def _set_all_columns(self, header):
-        exp_col_idx = self._set_column_index(header,  self._exp_col_name)
-        gene_col_idx = self._set_column_index(header, self._gene_col_name)
-        counts_col_idx = self._set_column_index(header, self._counts_col_name)
-        length_col_idx = self._set_column_index(header, self._length_col_name)
-
     def _create_float_matrix(self, h5file, matrix_name):
         new_matrix = h5file.create_dataset(
             matrix_name, (0,__MAX_FEATURES__),
@@ -260,8 +257,8 @@ class AbstractExpressionLoader(object):
             chunks=True, dtype="f8"
         )
         new_matrix.attrs["created"] = str(datetime.now())
-        new_matrix.attrs["row_label"] = self.samples_name
-        new_matrix.attrs["col_label"] = self.features_name
+        new_matrix.attrs["row_label"] = self.samples_id
+        new_matrix.attrs["col_label"] = self.features_id
         return new_matrix
 
 
@@ -345,10 +342,10 @@ class GSCLoader(AbstractExpressionLoader):
         self._file.close()
 
 
-# some tests
+# some test cases
 if __name__ == "__main__":
-    __OUTPUT_FILE__ = "/home/alipski/CanDIG/mock_data/rna_exp/gsc_exp_test.h5"
-    __DATA_DIR__ = "/home/alipski/CanDIG/mock_data/rna_exp/gsc_examples/exp_examples/"
-    #test_hdf5_expression = KallistoLoader(__OUTPUT_FILE__, __DATA_DIR__, "pog")
-    test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "pog")
+    __OUTPUT_FILE__ = "/test/output.h5"
+    __DATA_DIR__ = "/test/"
+    # test_hdf5_expression = KallistoLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
+    test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
     test_hdf5_expression.build_hdf5()
