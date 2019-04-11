@@ -40,6 +40,8 @@ By default a demo server can be run with:
 python3 -m rnaget_service --loglevel=WARN
 ```
 
+Once running, a Swagger UI can be accessed at: `/rnaget/ui`
+
 To specify your own database & log files, the server can be started with:
 
 ```

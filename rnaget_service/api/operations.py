@@ -16,6 +16,7 @@ from rnaget_service.orm import models
 from rnaget_service.api.logging import apilog, logger
 from rnaget_service.api.logging import structured_log as struct_log
 from rnaget_service.api.models import Error, BasePath, Version
+from rnaget_service.api.exceptions import ThresholdValueError
 from rnaget_service.orm.test_data import setup_testdb
 from rnaget_service.expression.rnaget_query import ExpressionQueryTool
 
@@ -420,8 +421,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
                     h5query.close()
 
-            except ValueError:
-                err = Error(message="Threshold array must be formatted: feature,threshold", code=400)
+            except ThresholdValueError as e:
+                err = Error(
+                    message=str(e),
+                    code=400)
                 return err, 400
 
             # file output as JSON for now
@@ -698,12 +701,16 @@ def convert_threshold_array(threshold_input):
     """
     query parameter threshold array formatted: Feature,Value,Feature,Value
     :param threshold_input: query parameter threshold array
-    :return: list of feature/threshold tuples
+    :return: list of feature/threshold tuples or raise error
     """
     threshold_output = []
-    for i in range(int(len(threshold_input)/2)):
-        threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
-    return threshold_output
+    try:
+        for i in range(int(len(threshold_input)/2)):
+            threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
+    except ValueError as err:
+        raise ThresholdValueError from err
+    else:
+        return threshold_output
 
 
 def get_expression_file(expressionId):
