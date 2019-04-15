@@ -21,6 +21,13 @@ def redact_readonly_fields(transaction):
         transaction['request']['body'] = json.dumps(request_body)
 
 
+@hooks.before("expressions > /rnaget/expressions > Create an expression database entry and map to quant file > 201 > application/json")
+def set_expression_filetype(transaction):
+    request_body = json.loads(transaction['request']['body'])
+    request_body['fileType'] = ".h5"
+    transaction['request']['body'] = json.dumps(request_body)
+
+
 @hooks.after("projects > /rnaget/projects/search > Search for projects matching filters > 200 > application/json")
 def save_projects_response(transaction):
     parsed_body = json.loads(transaction['real']['body'])

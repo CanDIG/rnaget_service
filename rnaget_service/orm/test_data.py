@@ -99,14 +99,15 @@ def _load_expression(study_id):
         'URL': flask.request.url_root[:-1]+BasePath+'/expressions/download/'+str(expressionid),
         'studyID': study_id,
         'version': Version,
-        'tags': ['test', 'pog', 'kallisto'],
+        'tags': ['test', 'pog', 'kallisto', 'expressions'],
+        "fileType": ".h5",
         'created': datetime.datetime.utcnow()
     }
 
     try:
-        orm_expression = orm.models.Expression(**test_expression)
+        orm_expression = orm.models.File(**test_expression)
     except orm.ORMException as e:
-        err = _report_conversion_error('expression', e, **test_expression)
+        err = _report_conversion_error('file', e, **test_expression)
         print(err)
         return
 
@@ -114,7 +115,7 @@ def _load_expression(study_id):
         db_session.add(orm_expression)
         db_session.commit()
     except orm.ORMException as e:
-        err = _report_write_error('expression', e, **test_expression)
+        err = _report_write_error('file', e, **test_expression)
         print(err)
         return
 
@@ -125,15 +126,23 @@ def _load_filters():
     # SEARCH FILTERS
     tags_filter = {
         "filter": "tags",
-        "description": "Comma separated tag list to filter by"
+        "description": "Comma separated tag list to filter by",
+        "filter_for": ["projects", "studies"]
     }
 
     version_filter = {
         "filter": "version",
-        "description": "Version to return"
+        "description": "Version to return",
+        "filter_for": ["projects", "studies"]
     }
 
-    for filter in [tags_filter, version_filter]:
+    project_filter = {
+        "filter": "projectID",
+        "description": "Parent project ID of study",
+        "filter_for": ["studies"]
+    }
+
+    for filter in [tags_filter, version_filter, project_filter]:
         try:
             orm_filter = orm.models.SearchFilter(**filter)
         except orm.ORMException as e:

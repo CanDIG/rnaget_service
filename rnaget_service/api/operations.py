@@ -105,7 +105,7 @@ def db_lookup_projects():
     return [orm.dump(x) for x in projects], 200
 
 
-def get_search_filters():
+def get_search_filters(filter_table):
     """
     :return: general filters used for project and study searches
     """
@@ -115,6 +115,7 @@ def get_search_filters():
 
     try:
         filters = db_session.query(search_filter)
+        filters = filters.filter(search_filter.filter_for.contains(filter_table))
     except orm.ORMException as e:
         err = _report_search_failed('search filter', e)
         return err, 500
@@ -207,7 +208,7 @@ def search_project_filters():
     """
     :return: filters for project searches
     """
-    return get_search_filters()
+    return get_search_filters('projects')
 
 
 @apilog
@@ -296,7 +297,7 @@ def search_study_filters():
     """
     :return: filters for study searches
     """
-    return get_search_filters()
+    return get_search_filters('studies')
 
 
 @apilog
@@ -307,7 +308,7 @@ def get_expression_by_id(expressionId):
     :return: a single specified expression matrix
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
 
     try:
         expr_matrix = db_session.query(expression).get(expressionId)
@@ -315,7 +316,7 @@ def get_expression_by_id(expressionId):
         err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
         return err, 404
     except orm.ORMException as e:
-        err = _report_search_failed('expression', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
 
     if not expr_matrix:
@@ -333,10 +334,14 @@ def post_expression(expression_record):
     expression_record['id'] = iid
     expression_record['created'] = datetime.datetime.utcnow()
 
+    if expression_record['fileType'] != '.h5':
+        err = Error(message="Expression matrix must be fileType = .h5", code=400)
+        return err, 400
+
     try:
-        orm_expression = orm.models.Expression(**expression_record)
+        orm_expression = orm.models.File(**expression_record)
     except orm.ORMException as e:
-        err = _report_conversion_error('project', e, **expression_record)
+        err = _report_conversion_error('file', e, **expression_record)
         return err, 400
 
     try:
@@ -350,7 +355,7 @@ def post_expression(expression_record):
         return err, 500
 
     logger().info(struct_log(action='post_expression', status='created',
-                             project_id=str(iid), **expression_record))
+                             expression_id=str(iid), **expression_record))
 
     return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
 
@@ -371,12 +376,13 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :return: expression matrices matching filters
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
 
     # TODO: default output for slicing HDF5's will be JSON for now, additional output options in progress
     try:
         # need to collect hdf5 files/expression db entries to pull from
         expressions = db_session.query(expression)
+        expressions = expressions.filter(expression.fileType == ".h5")
 
         # db queries
         if version:
@@ -656,6 +662,7 @@ def generate_json_url(results):
 
     formatted_results = {
         'URL': flask.request.url_root[:-1] + BasePath + '/download/json/' + file_id,
+        'fileType': '.json',
         'version': Version,
         'created': datetime.datetime.utcnow()
     }
@@ -720,7 +727,7 @@ def get_expression_file(expressionId):
     :return: internal expression matrix filepath
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
 
     try:
         expr_matrix = db_session.query(expression).get(expressionId)
@@ -728,7 +735,7 @@ def get_expression_file(expressionId):
         err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
         return err, 404
     except orm.ORMException as e:
-        err = _report_search_failed('expression', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
 
     if not expr_matrix:
