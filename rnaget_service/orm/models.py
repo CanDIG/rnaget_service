@@ -124,3 +124,19 @@ class File(Base):
     created = Column(DateTime())
     __table_args__ = ()
 
+
+class TempFile(Base):
+    """
+    SQLAlchemy class/table for representing temporary files. Table should be periodically cleared.
+    """
+    __tablename__ = 'tempfiles'
+    __filepath__ = Column(String(100))
+    id = Column(GUID(), primary_key=True)
+    version = Column(String(10))
+    tags = Column(JsonArray())
+    fileType = Column(String(10))
+    studyID = Column(GUID(), ForeignKey('studies.id'))
+    URL = Column(String(100))
+    created = Column(DateTime())
+    __table_args__ = ()
+

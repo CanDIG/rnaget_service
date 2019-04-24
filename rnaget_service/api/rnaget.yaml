@@ -1,15 +1,46 @@
 swagger: '2.0'
 info:
   title: RNA Seq API POC
-  version: "0.1.0"
+  version: "0.9.0"
 basePath: /rnaget
 consumes:
   - application/json
 produces:
   - application/json
 
-paths:
+tags:
+- name: projects
+  description: High level collection of studies
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: studies
+  description: Collection of associated uniformly processed RNA samples
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: expressions
+  description: Feature level expression data
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: getVersions
+  description: Returns database release versions
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: changelog
+  description: Returns change log for a release version
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: files
+  description: Returns files
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
 
+paths:
   /projects:
     post:
       tags:
@@ -43,7 +74,6 @@ paths:
           description: Internal error - project not created
           schema:
             $ref: '#/definitions/Error'
-
   /projects/search:
     get:
       tags:
@@ -80,7 +110,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /projects/search/filters:
     get:
       tags:
@@ -103,7 +132,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /projects/{projectId}:
     get:
       tags:
@@ -133,7 +161,6 @@ paths:
           description: Project not found
 #      security:
 #        - api_key: []
-
   /studies:
     post:
       tags:
@@ -167,7 +194,6 @@ paths:
           description: Internal error - project not created
           schema:
             $ref: '#/definitions/Error'
-
   /studies/search:
     get:
       tags:
@@ -210,7 +236,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /studies/search/filters:
     get:
       tags:
@@ -233,7 +258,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /studies/{studyId}:
     get:
       tags:
@@ -263,7 +287,6 @@ paths:
           description: Study not found
 #      security:
 #      - api_key: []
-
   /expressions:
     post:
       tags:
@@ -297,7 +320,6 @@ paths:
           description: Internal error - expression not created
           schema:
             $ref: '#/definitions/Error'
-
   /expressions/search:
     get:
       tags:
@@ -385,7 +407,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /expressions/search/filters:
     get:
       tags:
@@ -414,7 +435,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /expressions/{expressionId}:
     get:
       tags:
@@ -443,7 +463,6 @@ paths:
           description: Expression not found
 #      security:
 #      - api_key: []
-
   /expressions/download/{token}:
     get:
       tags:
@@ -465,7 +484,6 @@ paths:
           description: Invalid ID supplied
         "404":
           description: File not found
-
   /changelog:
     post:
       tags:
@@ -499,11 +517,10 @@ paths:
           description: Internal error - change log not created
           schema:
             $ref: '#/definitions/Error'
-
-  /changelog/getVersions:
+  /getVersions:
     get:
       tags:
-      - changelog
+      - getVersions
       summary: Get release versions of database
       operationId: rnaget_service.api.operations.get_versions
       produces:
@@ -523,7 +540,6 @@ paths:
 #      security:
 #      - rna_auth:
 #        - read:expression
-
   /changelog/{version}:
     get:
       tags:
@@ -538,7 +554,7 @@ paths:
       - name: version
         in: path
         description: release version
-        x-example: version1
+        x-example: 0.9.0
         required: true
         type: string
       responses:
@@ -552,93 +568,87 @@ paths:
           description: Change log not found
 #      security:
 #      - api_key: []
-
-# TODO: file queries not fully completed yet
-#
-#  /files/{fileID}:
-#    get:
-#      tags:
-#      - files
-#      summary: Get specific file
-#      description: Returns download URL for file
-#      operationId: rnaget_service.api.operations.get_file
-#      produces:
-#      - application/xml
-#      - application/json
-#      parameters:
-#      - name: fileID
-#        in: path
-#        description: file ID
-#        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-#        required: true
-#        type: string
-#      responses:
-#        "200":
-#          description: Successful operation
-#          schema:
-#            $ref: '#/definitions/file'
-#        "400":
-#          description: Invalid ID supplied
-#        "404":
-#          description: File not found
-##      security:
-##      - api_key: []
-#
-#
-#  /files/search:
-#    get:
-#      tags:
-#      - files
-#      summary: Search for files matching filters
-#      description: Search for files matching filters.  Returns download URL or manifest of download URLs for matching file(s)
-#      operationId: rnaget_service.api.operations.search_files
-#      produces:
-#      - application/xml
-#      - application/json
-#      parameters:
-#      - name: tags
-#        in: query
-#        description: Comma separated tag list to filter by
-#        required: false
-#        type: array
-#        items:
-#          type: string
-#        collectionFormat: multi
-#      - name: projectID
-#        in: query
-#        description: ProjectID to filter by
-#        required: false
-#        type: string
-#      - name: studyID
-#        in: query
-#        description: StudyID to filter by
-#        required: false
-#        type: string
-#      - name: fileType
-#        in: query
-#        description: File type to filter by
-#        required: false
-#        type: string
-#      responses:
-#        "200":
-#          description: Successful operation
-#          schema:
-#            type: array
-#            items:
-#              $ref: '#/definitions/file'
-#        "400":
-#          description: Error
-##      security:
-##      - rna_auth:
-##        - read:expression
-
-  /download/json/{token}:
+  /files/{fileID}:
     get:
       tags:
-      - download json
-      summary: Download the file as JSON
+      - files
+      summary: Get specific file
       description: Returns download URL for file
-      operationId: rnaget_service.api.operations.tmp_json_download
+      operationId: rnaget_service.api.operations.get_file
+      produces:
+      - application/xml
+      - application/json
+      parameters:
+      - name: fileID
+        in: path
+        description: file ID
+        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            $ref: '#/definitions/file'
+        "400":
+          description: Invalid ID supplied
+        "404":
+          description: File not found
+#      security:
+#      - api_key: []
+  /files/search:
+    get:
+      tags:
+      - files
+      summary: Search for files matching filters
+      description: Search for files matching filters.  Returns download URL or manifest of download URLs for matching file(s)
+      operationId: rnaget_service.api.operations.search_files
+      produces:
+      - application/xml
+      - application/json
+      parameters:
+      - name: tags
+        in: query
+        description: Comma separated tag list to filter by
+        required: false
+        type: array
+        items:
+          type: string
+        collectionFormat: multi
+      - name: projectID
+        in: query
+        description: ProjectID to filter by
+        required: false
+        type: string
+      - name: studyID
+        in: query
+        description: StudyID to filter by
+        required: false
+        type: string
+      - name: fileType
+        in: query
+        description: File type to filter by
+        required: false
+        type: string
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/file'
+        "400":
+          description: Error
+#      security:
+#      - rna_auth:
+#        - read:expression
+  /download/{token}:
+    get:
+      tags:
+      - download temp file
+      summary: Download the file as an available file type
+      description: Returns download URL for file
+      operationId: rnaget_service.api.operations.tmp_download
       parameters:
       - name: token
         in: path
@@ -654,23 +664,6 @@ paths:
         "404":
           description: File not found
 
-# TODO: delete this!!! only for demo use to set up some mock data with demo HDF5
-#  /demodb:
-#    post:
-#        tags:
-#         - demo
-#        operationId: rnaget_service.api.operations.db_test_setup
-#        summary: test
-#        responses:
-#            "201":
-#              description: successful operation
-#              schema:
-#                type: array
-#                items:
-#                 $ref: '#/definitions/project'
-#            "400":
-#              description: Error
-
 definitions:
   Error:
     type: object
@@ -683,7 +676,6 @@ definitions:
         format: int32
       message:
         type: string
-
   project:
     type: object
     properties:
@@ -705,7 +697,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: project
-
   study:
     type: object
     properties:
@@ -738,7 +729,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: study
-
   expression:
     type: object
     description: Matrix of expression values.
@@ -762,7 +752,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: expression
-
   searchFilter:
     type: object
     description: parameter name to use for filter when searching
@@ -778,7 +767,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: filters
-
   expressionSearchFilter:
     type: object
     description: parameter name to use for filter when searching
@@ -794,7 +782,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: filters
-
   changeLog:
     type: object
     description: list of changes to the database associated with a version update
@@ -806,7 +793,6 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: changeLog
-
   file:
     type: object
     description: URL and type for raw data and analysis pipeline files

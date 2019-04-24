@@ -1,8 +1,8 @@
 import json
 import dredd_hooks as hooks
-import sys
 
 UUID_EXAMPLE = "be2ba51c-8dfe-4619-b832-31c4a087a589"
+VERSION = "0.9.0"
 RO_FIELDS = ["created", "id"]
 response_stash = {}
 
@@ -28,6 +28,13 @@ def set_expression_filetype(transaction):
     transaction['request']['body'] = json.dumps(request_body)
 
 
+@hooks.before("changelog > /rnaget/changelog > Add a change log to the database > 201 > application/json")
+def set_changelog_version(transaction):
+    request_body = json.loads(transaction['request']['body'])
+    request_body['version'] = VERSION
+    transaction['request']['body'] = json.dumps(request_body)
+
+
 @hooks.after("projects > /rnaget/projects/search > Search for projects matching filters > 200 > application/json")
 def save_projects_response(transaction):
     parsed_body = json.loads(transaction['real']['body'])
@@ -49,7 +56,7 @@ def save_expressions_response(transaction):
     response_stash['expression_ids'] = ids
 
 
-@hooks.after("changelog > /rnaget/changelog/getVersions > Get release versions of database > 200 > application/json")
+@hooks.after("changelog > /rnaget/getVersions > Get release versions of database > 200 > application/json")
 def save_versions_response(transaction):
     parsed_body = json.loads(transaction['real']['body'])
     versions = [item for item in parsed_body]
@@ -73,6 +80,11 @@ def insert_expression_id(transaction):
         transaction['fullPath'] = transaction['fullPath'].replace(UUID_EXAMPLE, response_stash['expression_ids'][0])
 
 
+@hooks.before("files > /rnaget/files/{fileID} > Get specific file > 200 > application/json")
+def insert_file_id(transaction):
+    transaction['fullPath'] = transaction['fullPath'].replace(UUID_EXAMPLE, response_stash['expression_ids'][0])
+
+
 @hooks.before("changelog > /rnaget/changelog/{version} > Get change log for a specific release version > 200 > application/json")
 def insert_change_version(transaction):
     if 'versions' in response_stash:
@@ -87,7 +99,7 @@ def let_pass(transaction):
 
 
 # skipping file download endpoints
-@hooks.before("download json > /rnaget/download/json/{token} > Download the file as JSON > 200 > application/json")
+@hooks.before("download temp file > /rnaget/download/{token} > Download the file as an available file type > 200 > application/json")
 @hooks.before("download hdf5 > /rnaget/expressions/download/{token} > Download the file as HDF5 > 200 > application/json")
 def skip_test(transaction):
     transaction['skip'] = True
