@@ -19,7 +19,8 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
-    parser = argparse.ArgumentParser('Run RNA-Get service')
+    parser = argparse.ArgumentParser('Run RNA Get service')
+    parser.add_argument('--host', required=True)
     parser.add_argument('--database', default='demo')
     parser.add_argument('--port', default=3000)
     parser.add_argument('--logfile', default="./log/rnaget.log")
@@ -29,6 +30,7 @@ def main(args=None):
 
     # set up the application
     app = connexion.FlaskApp(__name__, server='tornado')
+    app.app.config['SERVER_NAME'] = str(args.host) + ':' + str(args.port)
 
     # set up the demo application
     if args.database == 'demo':
@@ -67,7 +69,8 @@ def main(args=None):
                                               'api/rnaget.yaml')
     app.add_api(api_def, strict_validation=True, validate_responses=True)
 
-    app.run(port=args.port)
+    print("Running on: http://{}".format(app.app.config['SERVER_NAME']))
+    app.run(host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

@@ -5,9 +5,31 @@
 
 from setuptools import setup, find_packages
 
-requirements = []
 setup_requirements = ['pytest-runner', ]
-test_requirements = ['pytest', ]
+
+test_requirements = []
+with open("requirements_dev.txt") as dev_requirements:
+    for line in dev_requirements:
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        if line[0] == '#':
+            continue
+
+        version_pin = line.split()[0]
+        test_requirements.append(version_pin)
+
+install_requires = []
+with open("requirements.txt") as requirements:
+    for line in requirements:
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        if line[0] == '#':
+            continue
+
+        version_pin = line.split()[0]
+        install_requires.append(version_pin)
 
 data_files = [('api', ['rnaget_service/api/rnaget.yaml'])]
 
@@ -26,7 +48,7 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="A POC implementation of GA4GH RNAGET API",
-    install_requires=requirements,
+    install_requires=install_requires,
     license="GNU General Public License v3",
     include_package_data=True,
     keywords='rnaget_service',
@@ -37,7 +59,7 @@ setup(
     tests_require=test_requirements,
     data_files=data_files,
     url='https://github.com/CanDIG/rnaget_service',
-    version='0.1.0',
+    version='0.9.0',
     zip_safe=False,
     entry_points={
         'console_scripts': [
