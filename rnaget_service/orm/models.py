@@ -61,7 +61,7 @@ class Study(Base):
 
 class Expression(Base):
     """
-    SQLAlchemy class/table representing the RNA expression matrix
+    Expressions stored in files table now. This table may be deprecated soon.
     """
     __tablename__ = 'expressions'
     __filepath__ = Column(String(100))
@@ -82,6 +82,8 @@ class SearchFilter(Base):
     version = Column(String(10), default="")
     filter = Column(String(100), primary_key=True)
     description = Column(String(100), default="")
+    # specify which table the filter is used in
+    filter_for = Column(JsonArray())
     __table_args__ = ()
 
 
@@ -110,9 +112,25 @@ class ChangeLog(Base):
 class File(Base):
     """
     SQLAlchemy class/table for representing files
-    TODO: similar schema to Expression data. Merge somehow?
     """
     __tablename__ = 'files'
+    __filepath__ = Column(String(100))
+    id = Column(GUID(), primary_key=True)
+    version = Column(String(10))
+    tags = Column(JsonArray())
+    fileType = Column(String(10))
+    studyID = Column(GUID(), ForeignKey('studies.id'))
+    URL = Column(String(100))
+    created = Column(DateTime())
+    __table_args__ = ()
+
+
+class TempFile(Base):
+    """
+    SQLAlchemy class/table for representing temporary files. Table should be periodically cleared.
+    """
+    __tablename__ = 'tempfiles'
+    __filepath__ = Column(String(100))
     id = Column(GUID(), primary_key=True)
     version = Column(String(10))
     tags = Column(JsonArray())

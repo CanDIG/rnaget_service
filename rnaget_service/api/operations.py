@@ -17,8 +17,9 @@ from rnaget_service.api.logging import apilog, logger
 from rnaget_service.api.logging import structured_log as struct_log
 from rnaget_service.api.models import Error, BasePath, Version
 from rnaget_service.api.exceptions import ThresholdValueError
-from rnaget_service.orm.test_data import setup_testdb
 from rnaget_service.expression.rnaget_query import ExpressionQueryTool
+
+app = flask.current_app
 
 
 def _report_search_failed(typename, exception, **kwargs):
@@ -84,13 +85,6 @@ def _report_write_error(typename, exception, **kwargs):
     return err
 
 
-@apilog
-def db_test_setup():
-    # TODO: DELETE -> DEV ONLY: use for updating the DB for some DEMO
-    setup_testdb()
-    return db_lookup_projects()
-
-
 def db_lookup_projects():
     db_session = orm.get_session()
     project = orm.models.Project
@@ -105,7 +99,7 @@ def db_lookup_projects():
     return [orm.dump(x) for x in projects], 200
 
 
-def get_search_filters():
+def get_search_filters(filter_table):
     """
     :return: general filters used for project and study searches
     """
@@ -115,6 +109,7 @@ def get_search_filters():
 
     try:
         filters = db_session.query(search_filter)
+        filters = filters.filter(search_filter.filter_for.contains(filter_table))
     except orm.ORMException as e:
         err = _report_search_failed('search filter', e)
         return err, 500
@@ -207,7 +202,7 @@ def search_project_filters():
     """
     :return: filters for project searches
     """
-    return get_search_filters()
+    return get_search_filters('projects')
 
 
 @apilog
@@ -296,7 +291,7 @@ def search_study_filters():
     """
     :return: filters for study searches
     """
-    return get_search_filters()
+    return get_search_filters('studies')
 
 
 @apilog
@@ -307,7 +302,7 @@ def get_expression_by_id(expressionId):
     :return: a single specified expression matrix
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
 
     try:
         expr_matrix = db_session.query(expression).get(expressionId)
@@ -315,7 +310,7 @@ def get_expression_by_id(expressionId):
         err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
         return err, 404
     except orm.ORMException as e:
-        err = _report_search_failed('expression', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
 
     if not expr_matrix:
@@ -333,10 +328,14 @@ def post_expression(expression_record):
     expression_record['id'] = iid
     expression_record['created'] = datetime.datetime.utcnow()
 
+    if expression_record['fileType'] != '.h5':
+        err = Error(message="Expression matrix must be fileType = .h5", code=400)
+        return err, 400
+
     try:
-        orm_expression = orm.models.Expression(**expression_record)
+        orm_expression = orm.models.File(**expression_record)
     except orm.ORMException as e:
-        err = _report_conversion_error('project', e, **expression_record)
+        err = _report_conversion_error('file', e, **expression_record)
         return err, 400
 
     try:
@@ -350,14 +349,14 @@ def post_expression(expression_record):
         return err, 500
 
     logger().info(struct_log(action='post_expression', status='created',
-                             project_id=str(iid), **expression_record))
+                             expression_id=str(iid), **expression_record))
 
     return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
 
 @apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
                       version=None, featureIDList=None, featureNameList=None,
-                      featureAccessionList=None, minExpression=None, maxExpression=None):
+                      featureAccessionList=None, minExpression=None, maxExpression=None, file_type=".h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -368,15 +367,18 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :param featureIDList: optional filter by listed feature IDs
     :param featureNameList: optional filter by listed features
     :param featureAccessionList: optional filter bys by listed accession numbers
+    :param file_type: output file type (not a part of schema yet)
     :return: expression matrices matching filters
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
+    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
 
     # TODO: default output for slicing HDF5's will be JSON for now, additional output options in progress
     try:
         # need to collect hdf5 files/expression db entries to pull from
         expressions = db_session.query(expression)
+        expressions = expressions.filter(expression.fileType == ".h5")
 
         # db queries
         if version:
@@ -396,30 +398,38 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             pass
 
         else:
-            # HDF5 queries
-            # TODO: feature name and feature accession lookups; how to store pointer to hdf5 file?
-            results = {}
+            # H5 queries
+            # TODO: feature name and feature accession lookups
+            responses = []
             try:
                 for expr in expressions:
+                    output_file_id = uuid.uuid1()
+                    output_filepath = tmp_dir+str(output_file_id)+file_type
                     try:
-                        h5query = ExpressionQueryTool(expr.__filepath__)
+                        h5query = ExpressionQueryTool(
+                            expr.__filepath__,
+                            output_filepath,
+                            include_metadata=False,
+                            output_type=file_type
+                        )
                     except OSError as err:
                         # file not found... do something?
                         print(err)
                         continue
 
                     if sampleID or featureIDList:
-                        results[str(expr.studyID)] = h5query.search(sample_id=sampleID, feature_list=featureIDList)
+                        q = h5query.search(sample_id=sampleID, feature_list=featureIDList)
 
                     elif minExpression:
                         threshold_array = convert_threshold_array(minExpression)
-                        results[str(expr.studyID)] = h5query.search_threshold(threshold_array, ft_type='min')
+                        q = h5query.search_threshold(threshold_array, ft_type='min')
 
-                    elif maxExpression:
+                    else:
                         threshold_array = convert_threshold_array(maxExpression)
-                        results[str(expr.studyID)] = h5query.search_threshold(threshold_array, ft_type='max')
+                        q = h5query.search_threshold(threshold_array, ft_type='max')
 
                     h5query.close()
+                    responses.append(generate_file_response(q, file_type, output_file_id, expr.studyID))
 
             except ThresholdValueError as e:
                 err = Error(
@@ -427,17 +437,14 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                     code=400)
                 return err, 400
 
-            # file output as JSON for now
-            # TODO: if using multiple matrices,
-            response = generate_json_url(results)
-
-            return [response], 200
+            return responses, 200
 
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
         return err, 500
 
     return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+
 
 @apilog
 def search_expression_filters(type=None):
@@ -549,16 +556,16 @@ def get_file(fileID):
     file = orm.models.File
 
     try:
-        get_file = db_session.query(file).get(fileID)
+        file_q = db_session.query(file).get(fileID)
     except orm.ORMException as e:
         err = _report_search_failed('file', e, file_id=fileID)
         return err, 500
 
-    if not get_file:
+    if not file_q:
         err = Error(message="File not found: " + fileID, code=404)
         return err, 404
 
-    return orm.dump(get_file), 200
+    return orm.dump(file_q), 200
 
 
 @apilog
@@ -573,7 +580,6 @@ def search_files(tags=None, projectID=None, studyID=None, fileType=None):
     """
     db_session = orm.get_session()
     file = orm.models.File
-    valid_file_types = ['bam','csv','vcf']
 
     try:
         files = db_session.query(file)
@@ -584,11 +590,8 @@ def search_files(tags=None, projectID=None, studyID=None, fileType=None):
             files = files.filter(file.studyID.in_(study_list))
         if studyID:
             files = files.filter(file.studyID == studyID)
-        if fileType in valid_file_types:
+        if fileType:
             files = files.filter(file.fileType == fileType)
-        else:
-            err = Error(message="Invalid file type: " + fileType, code=400)
-            return err, 400
     except orm.ORMException as e:
         err = _report_search_failed('file', e)
         return err, 500
@@ -613,24 +616,15 @@ def get_study_by_project(projectID):
 
 # TODO: setup DRS/DOS for temp files and hdf5 storage?
 
-@apilog
-def tmp_json_download(token):
-    """
-
-    :param token: for now using the file identifier
-    :return: json file with type application/json
-    """
-    return download_file('data/tmp/json', token, ".json")
-
 
 @apilog
-def tmp_h5_download(token):
+def tmp_download(token):
     """
 
     :param token: for now using the file identifier
     :return: h5 file with type application/octet-stream
     """
-    return download_file('data/tmp/h5', token, ".h5")
+    return download_file(token, temp_file=True)
 
 
 @apilog
@@ -638,54 +632,80 @@ def expression_download(token):
     """
 
     :param token: for now using the file identifier
-    :return: h5 file with type application/octet-stream
+    :return: file attachment type application/octet-stream
     """
-    return download_file('data/expression/', token, ".h5")
+    return download_file(token)
 
 
-def generate_json_url(results):
-    file_id = str(uuid.uuid1())
+def generate_file_response(results, file_type, file_id, study_id):
+    base_url = flask.request.url_root[:-1] + BasePath
 
-    tmp_dir = os.path.join(os.path.dirname(flask.current_app.instance_path), 'data/tmp/json/')
+    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 
-    tmp_file_path = os.path.join(tmp_dir, file_id + '.json')
-    with open(tmp_file_path, 'w') as outfile:
-        json.dump(results, outfile)
+    if file_type == ".json":
+        tmp_file_path = os.path.join(tmp_dir, str(file_id) + file_type)
+        with open(tmp_file_path, 'w') as outfile:
+            json.dump(results, outfile)
 
-    formatted_results = {
-        'URL': flask.request.url_root[:-1] + BasePath + '/download/json/' + file_id,
+    elif file_type == ".h5":
+        # results file written to hdf5 in mem
+        tmp_file_path = results.filename
+        results.close()
+
+    else:
+        raise ValueError("Invalid file type")
+
+    file_record = {
+        'id': file_id,
+        'URL': base_url + '/download/' + str(file_id),
+        'studyID': study_id,
+        'fileType': file_type,
         'version': Version,
-        'created': datetime.datetime.utcnow()
+        'created': datetime.datetime.utcnow(),
+        '__filepath__': tmp_file_path
     }
 
-    return formatted_results
+    return create_tmp_file_record(file_record)
 
 
-def download_file(data_path, token, file_ext):
+def download_file(token, temp_file=False):
     """
     Generic file exporter
     """
 
     try:
-        if data_path == "data/expression/":
-            access_file = get_expression_file(token)
+        if not temp_file:
+            access_file = get_expression_file_path(token)
             if not access_file:
-                err = Error(message="file not found", code=404)
+                err = Error(message="File not found", code=404)
                 return err, 404
             response = flask.send_file(access_file, as_attachment=True)
         # use tmp directory file ID's
         else:
-            access_file = token+file_ext
-            tmp_dir = os.path.join(
-                os.path.dirname(flask.current_app.instance_path), data_path
-            )
+            db_session = orm.get_session()
+            temp_file = orm.models.TempFile
 
-            if os.path.isfile(os.path.join(tmp_dir, access_file)):
-                response = flask.send_from_directory(tmp_dir, access_file, as_attachment=True)
+            try:
+                access_file = db_session.query(temp_file).get(token)
+            except exc.StatementError:
+                err = Error(message="Invalid file token: " + str(token), code=404)
+                return err, 404
+            except orm.ORMException as e:
+                err = _report_search_failed('file', e, expression_id=token)
+                return err, 500
+
+            if not access_file:
+                err = Error(message="File not found (link may have expired)", code=404)
+                return err, 404
+
+            file_path = access_file.__filepath__
+
+            if os.path.isfile(file_path):
+                response = flask.send_file(file_path, as_attachment=True)
             else:
-                err = Error(message="file not found", code=404)
+                err = Error(message="File not found (link may have expired)", code=404)
                 return err, 404
 
         response.direct_passthrough = False
@@ -713,14 +733,14 @@ def convert_threshold_array(threshold_input):
         return threshold_output
 
 
-def get_expression_file(expressionId):
+def get_expression_file_path(expressionId):
     """
 
     :param expressionId: required identifier
     :return: internal expression matrix filepath
     """
     db_session = orm.get_session()
-    expression = orm.models.Expression
+    expression = orm.models.File
 
     try:
         expr_matrix = db_session.query(expression).get(expressionId)
@@ -728,7 +748,7 @@ def get_expression_file(expressionId):
         err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
         return err, 404
     except orm.ORMException as e:
-        err = _report_search_failed('expression', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
 
     if not expr_matrix:
@@ -736,3 +756,27 @@ def get_expression_file(expressionId):
         return err, 404
 
     return expr_matrix.__filepath__
+
+
+def create_tmp_file_record(file_record):
+    db_session = orm.get_session()
+
+    try:
+        orm_expression = orm.models.TempFile(**file_record)
+    except orm.ORMException as e:
+        err = _report_conversion_error('file', e, **file_record)
+        return err, 400
+
+    del file_record['__filepath__']
+
+    try:
+        db_session.add(orm_expression)
+        db_session.commit()
+    except exc.IntegrityError:
+        err = _report_object_exists('file: ' + file_record['id'], **file_record)
+        return err, 405
+    except orm.ORMException as e:
+        err = _report_write_error('file', e, **file_record)
+        return err, 500
+
+    return file_record
