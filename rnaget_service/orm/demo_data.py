@@ -26,17 +26,17 @@ def _load_expression(study_id):
     expression_file = os.path.join(expression_path, 'demo_quants.h5')
     # copyfile(local_file, expression_file)
 
-    with flask.current_app.test_request_context():
-        test_expression = {
-            'id': expressionid,
-            '__filepath__': expression_file,
-            'URL': flask.request.url_root[:-1]+BasePath+'/expressions/download/'+str(expressionid),
-            'studyID': study_id,
-            'version': Version,
-            'tags': ['test', 'pog', 'kallisto', 'expressions'],
-            "fileType": ".h5",
-            'created': datetime.datetime.utcnow()
-        }
+    url_base = 'http://'+flask.current_app.config['SERVER_NAME']+BasePath
+    test_expression = {
+        'id': expressionid,
+        '__filepath__': expression_file,
+        'URL': url_base+'/expressions/download/'+str(expressionid),
+        'studyID': study_id,
+        'version': Version,
+        'tags': ['test', 'pog', 'kallisto', 'expressions'],
+        "fileType": ".h5",
+        'created': datetime.datetime.utcnow()
+    }
 
     try:
         orm_expression = orm.models.File(**test_expression)
