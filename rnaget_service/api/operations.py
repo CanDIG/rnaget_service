@@ -8,6 +8,7 @@ import uuid
 import flask
 import os
 import json
+import pkg_resources
 
 from sqlalchemy import or_
 from sqlalchemy import exc
@@ -372,11 +373,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     """
     db_session = orm.get_session()
     expression = orm.models.File
-    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
+    tmp_dir = app.config.get('TMP_DIRECTORY')
 
-    # TODO: default output for slicing HDF5's will be JSON for now, additional output options in progress
     try:
-        # need to collect hdf5 files/expression db entries to pull from
+        # TODO: find better way to filter for expression data?
         expressions = db_session.query(expression)
         expressions = expressions.filter(expression.fileType == ".h5")
 
@@ -389,12 +389,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         if studyID:
             expressions = expressions.filter(expression.studyID == studyID)
         if projectID:
-            # TODO: query performance?
             study_list = get_study_by_project(projectID)
             expressions = expressions.filter(expression.studyID.in_(study_list))
 
-        if not any([sampleID, featureIDList, maxExpression, minExpression]):
-            # return expression file list as is
+        if not any([sampleID, featureIDList, featureNameList, featureAccessionList, maxExpression, minExpression]):
             pass
 
         else:
@@ -405,25 +403,29 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                 for expr in expressions:
                     output_file_id = uuid.uuid1()
                     output_filepath = tmp_dir+str(output_file_id)+file_type
+                    feature_map = pkg_resources.resource_filename('rnaget_service',
+                                                                  'expression/feature_mapping_HGNC.tsv')
                     try:
                         h5query = ExpressionQueryTool(
                             expr.__filepath__,
                             output_filepath,
                             include_metadata=False,
-                            output_type=file_type
+                            output_type=file_type,
+                            feature_map=feature_map
                         )
                     except OSError as err:
-                        # file not found... do something?
-                        print(err)
+                        logger().warning(struct_log(action=str(err)))
                         continue
 
                     if sampleID or featureIDList:
-                        q = h5query.search(sample_id=sampleID, feature_list=featureIDList)
-
+                        q = h5query.search(sample_id=sampleID, feature_list_id=featureIDList)
+                    elif featureNameList:
+                        q = h5query.search(feature_list_name=featureNameList)
+                    elif featureAccessionList:
+                        q = h5query.search(feature_list_accession=featureAccessionList)
                     elif minExpression:
                         threshold_array = convert_threshold_array(minExpression)
                         q = h5query.search_threshold(threshold_array, ft_type='min')
-
                     else:
                         threshold_array = convert_threshold_array(maxExpression)
                         q = h5query.search_threshold(threshold_array, ft_type='max')
@@ -614,9 +616,8 @@ def get_study_by_project(projectID):
         study_id_list = [x.id for x in studies]
     return study_id_list
 
+
 # TODO: setup DRS/DOS for temp files and hdf5 storage?
-
-
 @apilog
 def tmp_download(token):
     """
@@ -639,8 +640,8 @@ def expression_download(token):
 
 def generate_file_response(results, file_type, file_id, study_id):
     base_url = flask.request.url_root[:-1] + BasePath
+    tmp_dir = app.config.get('TMP_DIRECTORY')
 
-    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 

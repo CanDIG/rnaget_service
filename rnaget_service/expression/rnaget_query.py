@@ -4,7 +4,8 @@ HDF5 Query tool
 import h5py
 import numpy as np
 import flask
-from datetime import datetime
+import pandas as pd
+from collections import OrderedDict
 
 app = flask.current_app
 SUPPORTED_OUTPUT_FORMATS = [".json",".h5"]  # ".loom"]
@@ -15,23 +16,26 @@ class ExpressionQueryTool(object):
     Supports searching expression data from properly formatted HDF5 files
         - sample id
         - features by list:
-            - feature accession (soon)
-            - feature name (soon)
+            - feature accession
+            - feature name
             - feature id
         - expression threshold array:
             - either minThreshold or maxThreshold
-            - [(feature1, threshold1), (feature2, theshold2)...]
+            - [(featureId1, threshold1), (featureId2, theshold2)...]
     """
 
-    def __init__(self, input_file, output_file, include_metadata=False, output_type=".h5"):
+    def __init__(self, input_file, output_file=None, include_metadata=False, output_type=".h5", feature_map=None):
         """
 
-        :param hdf5path: path to HDF5 file being queried
+        :param input_file: path to HDF5 file being queried
+        :param output_file: path where output file should be generated (for non JSON output types)
         :param include_metadata: (bool) include expression file metadata in results
-        :param output: JSON for now, plan to HDF5,loom,and others soon
+        :param output_type: .json | .h5 (.loom in progress)
+        :param feature_map: .tsv file containing mapping for gene_id<->gene_name<->accessions
         """
         self._file = h5py.File(input_file, 'r')
         self._output_file = output_file
+        self._feature_map = feature_map
         self._expression_matrix = "expression"
         self._features = "axis/features"
         self._samples = "axis/samples"
@@ -68,7 +72,7 @@ class ExpressionQueryTool(object):
         return self._file[self._counts]
 
     def _get_hdf5_indices(self, axis, id_list):
-        indices = {}
+        indices = OrderedDict()
         encoded_list = list(map(str.encode, id_list))
         arr = self._file[axis][:]
         for encoded_id in encoded_list:
@@ -98,6 +102,8 @@ class ExpressionQueryTool(object):
                 results = self._write_hdf5_results(
                     results, encoded_samples, feature_load, sample_expressions)
 
+                results[self._expression_matrix].attrs["units"] = expression.attrs.get("units")
+
             if self._include_metadata:
                 counts = self.get_raw_counts()
                 sample_counts = counts[sample_index,...]
@@ -111,7 +117,7 @@ class ExpressionQueryTool(object):
 
         return results
 
-    def _search_features(self, feature_list, ft_list=None, ft_type=None):
+    def _search_features(self, feature_list, ft_list=None, ft_type=None, supplementary_feature_label=None):
         """
         feature_list must be a list of gene ID valid to data set
         """
@@ -161,7 +167,6 @@ class ExpressionQueryTool(object):
                 if include:
                     sample_expressions.append(threshold_samples)
                     samples_list.append(samples[idx].decode())
-
                     if self._include_metadata:
                         feature_counts.append(threshold_counts)
 
@@ -177,7 +182,6 @@ class ExpressionQueryTool(object):
                     feature_counts.append(list(counts[...,slice_index]))
 
             samples_list = list(map(bytes.decode, self.get_samples()))
-
             if self._include_metadata:
                 feature_counts = np.transpose(feature_counts)
 
@@ -198,7 +202,8 @@ class ExpressionQueryTool(object):
 
             if feature_expressions:
                 results = self._write_hdf5_results(
-                    results, encoded_samples, encoded_features, np.transpose(feature_expressions))
+                    results, encoded_samples, encoded_features, feature_expressions,
+                    suppl_features_label=supplementary_feature_label, transpose=True)
 
             elif sample_expressions:
                 results = self._write_hdf5_results(
@@ -210,15 +215,38 @@ class ExpressionQueryTool(object):
 
         return results
 
-    def search(self, sample_id=None, feature_list=None):
+    def search(self, sample_id=None, feature_list_id=None, feature_list_accession=None, feature_list_name=None):
         """
         General search function. Accepts any combination of the following arguments:
-        - sample_id || feature_list || sample_id and feature_list
+        - sample_id || feature_list_id or feature_list_accession or feature_list_name || sample_id and feature_list
         """
-        if sample_id and feature_list:
+        supplementary_feature_label = []
+
+        if feature_list_accession or feature_list_name:
+            if feature_list_id or (feature_list_accession and feature_list_name):
+                raise ValueError("Invalid argument values provided")
+            df = pd.read_csv(self._feature_map, sep='\t')
+            feature_list_id = []
+
+            if feature_list_name:
+                for feature_name in feature_list_name:
+                    df_lookup = df.loc[df['gene_symbol'] == feature_name].ensembl_id
+                    if len(df_lookup) > 0:
+                        feature_list_id.append(df_lookup.values[0])
+                        supplementary_feature_label.append(feature_name)
+            else:
+                for feature_accession in feature_list_accession:
+                    df_lookup = df.loc[df['accession_numbers'] == feature_list_accession].ensembl_id
+                    if len(df_lookup) > 0:
+                        feature_list_id.append(df_lookup.values[0])
+                        supplementary_feature_label.append(feature_accession)
+
+            supplementary_feature_label = [suppl.encode('utf-8') for suppl in supplementary_feature_label]
+
+        if sample_id and feature_list_id:
             expression = self.get_expression_matrix()
             sample_index = self._get_hdf5_indices(self._samples, [sample_id]).get(sample_id)
-            feature_indices = self._get_hdf5_indices(self._features, feature_list)
+            feature_indices = self._get_hdf5_indices(self._features, feature_list_id)
             results = self._build_results_template(expression)
 
             if sample_index is not None:
@@ -249,7 +277,8 @@ class ExpressionQueryTool(object):
                     encoded_features = [feature.encode('utf-8') for feature in feature_indices]
 
                     results = self._write_hdf5_results(
-                        results, encoded_samples, encoded_features, np.transpose(feature_expressions))
+                        results, encoded_samples, encoded_features, feature_expressions,
+                        suppl_features_label=supplementary_feature_label, transpose=True)
 
                     if self._include_metadata:
                         results = self._write_hdf5_metadata(
@@ -260,8 +289,8 @@ class ExpressionQueryTool(object):
         elif sample_id:
             return self._search_sample(sample_id)
 
-        elif feature_list:
-            return self._search_features(feature_list)
+        elif feature_list_id:
+            return self._search_features(feature_list_id, supplementary_feature_label=supplementary_feature_label)
 
         else:
             raise ValueError("Invalid argument values provided")
@@ -270,33 +299,36 @@ class ExpressionQueryTool(object):
         feature_list = list(zip(*ft_list))[0]
         return self._search_features(feature_list, ft_list=ft_list, ft_type=ft_type)
 
-    def _write_hdf5_results(self, results, sample_list, feature_list, expressions):
-        """
+    def _write_hdf5_results(self, results, sample_list, feature_list, expressions,
+                            suppl_features_label=None, transpose=False):
+            features_ds = results.create_dataset(
+                self._features, (len(feature_list),1), maxshape=(len(feature_list),2), dtype="S20")
+            features_data = [feature_list]
 
-        :param results: the results file-object being written to
-        :param sample_list: samples list
-        :param feature_list: features list
-        :param expressions: quantification matrix values
-        :return:
-        """
-        features_ds = results.create_dataset(
-            self._features, (len(feature_list),), maxshape=(len(feature_list),), dtype="S20")
-        features_ds[...] = feature_list
+            if suppl_features_label:
+                features_ds.resize((len(feature_list),2))
+                features_data.append(suppl_features_label)
 
-        samples_ds = results.create_dataset(
-            self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S20")
-        samples_ds[...] = sample_list
+            features_ds[...] = np.transpose(features_data)
 
-        expression_ds = results.create_dataset(
-            self._expression_matrix, (len(sample_list), len(feature_list)), maxshape=(len(sample_list),len(feature_list)), chunks=True, dtype="f8")
+            samples_ds = results.create_dataset(
+                self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S20")
+            samples_ds[...] = sample_list
 
-        expression_ds.attrs["units"] = self.get_expression_matrix().attrs.get("units")
-        expression_ds.attrs["created"] = str(datetime.now())
-        expression_ds.attrs["row_label"] = self._samples
-        expression_ds.attrs["col_label"] = self._features
-        expression_ds[...] = expressions
+            expression_ds = results.create_dataset(
+                self._expression_matrix, (len(sample_list), len(feature_list)),
+                maxshape=(len(sample_list),len(feature_list)), chunks=True, dtype="f8")
 
-        return results
+            ref_ds = self.get_expression_matrix()
+            expression_ds.attrs["units"] = ref_ds.attrs.get("units")
+            expression_ds.attrs["study"] = ref_ds.attrs.get("study")
+
+            if transpose:
+                expression_ds[...] = np.transpose(expressions)
+            else:
+                expression_ds[...] = expressions
+
+            return results
 
     def _write_hdf5_metadata(self, results, num_samples, num_features, counts=None):
         """
@@ -306,7 +338,8 @@ class ExpressionQueryTool(object):
         """
         if counts is not None:
             counts_ds = results.create_dataset(
-                self._counts, (num_samples, num_features), maxshape=(num_samples, num_features), chunks=True, dtype="f8")
+                self._counts, (num_samples, num_features),
+                maxshape=(num_samples, num_features), chunks=True, dtype="f8")
 
             counts_ds[...] = counts
 

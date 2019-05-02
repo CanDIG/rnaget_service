@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   title: RNA Seq API POC
-  version: "0.9.0"
+  version: "0.9.1"
 basePath: /rnaget
 consumes:
   - application/json
@@ -366,21 +366,20 @@ paths:
         type: array
         items:
           type: string
-# TODO: implement
-#      - name: featureNameList
-#        in: query
-#        description: return only values for listed features
-#        required: false
-#        type: array
-#        items:
-#          type: string
-#      - name: featureAccessionList
-#        in: query
-#        description: return only values for listed accession numbers
-#        required: false
-#        type: array
-#        items:
-#          type: string
+      - name: featureNameList
+        in: query
+        description: return only values for listed features
+        required: false
+        type: array
+        items:
+          type: string
+      - name: featureAccessionList
+        in: query
+        description: return only values for listed accession numbers
+        required: false
+        type: array
+        items:
+          type: string
       - name: minExpression
         in: query
         description: array of feature id, min threshold tuples
