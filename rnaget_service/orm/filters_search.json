@@ -1,0 +1,14 @@
+[
+  {
+    "filter": "tags",
+    "description": "Comma separated tag list to filter by"
+  },
+  {
+    "filter": "version",
+    "description": "Version to return"
+  },
+  {
+    "filter": "projectID",
+    "description": "Parent project ID of study"
+  }
+]

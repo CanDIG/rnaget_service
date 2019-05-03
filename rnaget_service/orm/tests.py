@@ -22,7 +22,7 @@ def _load_expression(study_id):
         os.makedirs(expression_path)
     expression_file = os.path.join(expression_path, 'demo_quants.h5')
 
-    url_base = 'http://'+flask.current_app.config['SERVER_NAME']+BasePath
+    url_base = 'http://'+flask.current_app.config['BASE_DL_URL']+BasePath
     test_expression = {
         'id': expressionid,
         '__filepath__': expression_file,
@@ -45,78 +45,6 @@ def _load_expression(study_id):
         db_session.commit()
     except orm.ORMException:
         return
-
-
-def _load_filters():
-    db_session = orm.get_session()
-
-    # SEARCH FILTERS
-    tags_filter = {
-        "filter": "tags",
-        "description": "Comma separated tag list to filter by",
-        "filter_for": ["projects", "studies"]
-    }
-
-    version_filter = {
-        "filter": "version",
-        "description": "Version to return",
-        "filter_for": ["projects", "studies"]
-    }
-
-    project_filter = {
-        "filter": "projectID",
-        "description": "Parent project ID of study",
-        "filter_for": ["studies"]
-    }
-
-    for filter in [tags_filter, version_filter, project_filter]:
-        try:
-            orm_filter = orm.models.SearchFilter(**filter)
-        except orm.ORMException:
-            return
-
-        try:
-            db_session.add(orm_filter)
-            db_session.commit()
-        except orm.ORMException:
-            return
-
-    # EXPRESSION SEARCH FILTERS
-    sample_filters = [{"filter": "sampleID",
-                       "description": "sampleID to match"},
-                      {"filter": "projectID",
-                       "description": "project to filter on"},
-                      {"filter": "studyID",
-                       "description": "study to filter on"}]
-
-    sample_filter = {
-        "filterType": "sample",
-        "filters": sample_filters
-    }
-
-    feature_filters = [{"filter": "maxExpression",
-                        "description": "return only samples with expression values less than listed threshold for each corresponding feature in the array"},
-                       {"filter": "minExpression",
-                        "description": "return only samples with expression values greater than listed threshold for each corresponding feature in the array"},
-                       {"filter": "featureIDList",
-                        "description": "return only values for listed feature ID values"}]
-
-    feature_filter = {
-        "filterType": "feature",
-        "filters": feature_filters
-    }
-
-    for filter in [sample_filter, feature_filter]:
-        try:
-            orm_filter = orm.models.ExpressionSearchFilter(**filter)
-        except orm.ORMException:
-            return
-
-        try:
-            db_session.add(orm_filter)
-            db_session.commit()
-        except orm.ORMException:
-            return
 
 
 def _load_project_study():
@@ -242,5 +170,4 @@ def get_db(app):
 def setup_db(app):
     with app.app.app_context():
         _load_project_study()
-        _load_filters()
         _load_projects()

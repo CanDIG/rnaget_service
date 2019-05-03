@@ -34,8 +34,8 @@ def main(args=None):
     parser.add_argument('--tmpdata', default="./data/tmp/")
     args = parser.parse_args(args)
 
-    # set up the application
-    app.app.config['SERVER_NAME'] = str(args.host) + ':' + str(args.port)
+    # set up the local application
+    app.app.config['BASE_DL_URL'] = 'http://'+str(args.host)+':'+str(args.port)
     app.app.config['TMP_DIRECTORY'] = args.tmpdata
 
     define("dbfile", default=args.database)
