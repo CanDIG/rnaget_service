@@ -8,6 +8,7 @@ import uuid
 import flask
 import os
 import json
+import pkg_resources
 
 from sqlalchemy import or_
 from sqlalchemy import exc
@@ -99,24 +100,6 @@ def db_lookup_projects():
     return [orm.dump(x) for x in projects], 200
 
 
-def get_search_filters(filter_table):
-    """
-    :return: general filters used for project and study searches
-    """
-
-    db_session = orm.get_session()
-    search_filter = orm.models.SearchFilter
-
-    try:
-        filters = db_session.query(search_filter)
-        filters = filters.filter(search_filter.filter_for.contains(filter_table))
-    except orm.ORMException as e:
-        err = _report_search_failed('search filter', e)
-        return err, 500
-
-    return [orm.dump(x) for x in filters], 200
-
-
 @apilog
 def get_project_by_id(projectId):
     """
@@ -150,6 +133,7 @@ def post_project(project_record):
     iid = uuid.uuid1()
     project_record['id'] = iid
     project_record['created'] = datetime.datetime.utcnow()
+    project_record['version'] = Version
 
     try:
         orm_project = orm.models.Project(**project_record)
@@ -197,12 +181,15 @@ def search_projects(tags=None, version=None):
 
     return [orm.dump(x) for x in projects], 200
 
+
 @apilog
 def search_project_filters():
     """
     :return: filters for project searches
     """
-    return get_search_filters('projects')
+    valid_filters = ["tags", "version"]
+
+    return get_search_filters(valid_filters)
 
 
 @apilog
@@ -239,6 +226,7 @@ def post_study(study_record):
     iid = uuid.uuid1()
     study_record['id'] = iid
     study_record['created'] = datetime.datetime.utcnow()
+    study_record['version'] = Version
 
     try:
         orm_study = orm.models.Study(**study_record)
@@ -291,7 +279,24 @@ def search_study_filters():
     """
     :return: filters for study searches
     """
-    return get_search_filters('studies')
+    valid_filters = ["tags", "version", "projectID"]
+
+    return get_search_filters(valid_filters)
+
+
+def get_search_filters(valid_filters):
+    filter_file = pkg_resources.resource_filename('rnaget_service', 'orm/filters_search.json')
+
+    with open(filter_file, 'r') as ef:
+        search_filters = json.load(ef)
+
+    response = []
+
+    for search_filter in search_filters:
+        if search_filter["filter"] in valid_filters:
+            response.append(search_filter)
+
+    return response, 200
 
 
 @apilog
@@ -325,11 +330,15 @@ def post_expression(expression_record):
     db_session = orm.get_session()
 
     iid = uuid.uuid1()
+    base_url = app.config.get('BASE_DL_URL') + BasePath
+
     expression_record['id'] = iid
     expression_record['created'] = datetime.datetime.utcnow()
+    expression_record['version'] = Version
+    expression_record['URL'] = base_url+'/expressions/download/'+str(iid)
 
     if expression_record['fileType'] != '.h5':
-        err = Error(message="Expression matrix must be fileType = .h5", code=400)
+        err = Error(message="Expression matrix must be fileType '.h5'", code=400)
         return err, 400
 
     try:
@@ -353,6 +362,7 @@ def post_expression(expression_record):
 
     return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
 
+
 @apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
                       version=None, featureIDList=None, featureNameList=None,
@@ -372,11 +382,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     """
     db_session = orm.get_session()
     expression = orm.models.File
-    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
+    tmp_dir = app.config.get('TMP_DIRECTORY')
 
-    # TODO: default output for slicing HDF5's will be JSON for now, additional output options in progress
     try:
-        # need to collect hdf5 files/expression db entries to pull from
+        # TODO: find better way to filter for expression data?
         expressions = db_session.query(expression)
         expressions = expressions.filter(expression.fileType == ".h5")
 
@@ -389,12 +398,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         if studyID:
             expressions = expressions.filter(expression.studyID == studyID)
         if projectID:
-            # TODO: query performance?
             study_list = get_study_by_project(projectID)
             expressions = expressions.filter(expression.studyID.in_(study_list))
 
-        if not any([sampleID, featureIDList, maxExpression, minExpression]):
-            # return expression file list as is
+        if not any([sampleID, featureIDList, featureNameList, featureAccessionList, maxExpression, minExpression]):
             pass
 
         else:
@@ -405,25 +412,29 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                 for expr in expressions:
                     output_file_id = uuid.uuid1()
                     output_filepath = tmp_dir+str(output_file_id)+file_type
+                    feature_map = pkg_resources.resource_filename('rnaget_service',
+                                                                  'expression/feature_mapping_HGNC.tsv')
                     try:
                         h5query = ExpressionQueryTool(
                             expr.__filepath__,
                             output_filepath,
                             include_metadata=False,
-                            output_type=file_type
+                            output_type=file_type,
+                            feature_map=feature_map
                         )
                     except OSError as err:
-                        # file not found... do something?
-                        print(err)
+                        logger().warning(struct_log(action=str(err)))
                         continue
 
                     if sampleID or featureIDList:
-                        q = h5query.search(sample_id=sampleID, feature_list=featureIDList)
-
+                        q = h5query.search(sample_id=sampleID, feature_list_id=featureIDList)
+                    elif featureNameList:
+                        q = h5query.search(feature_list_name=featureNameList)
+                    elif featureAccessionList:
+                        q = h5query.search(feature_list_accession=featureAccessionList)
                     elif minExpression:
                         threshold_array = convert_threshold_array(minExpression)
                         q = h5query.search_threshold(threshold_array, ft_type='min')
-
                     else:
                         threshold_array = convert_threshold_array(maxExpression)
                         q = h5query.search_threshold(threshold_array, ft_type='max')
@@ -453,26 +464,24 @@ def search_expression_filters(type=None):
     :param type: optional one of `feature` or `sample`. If blank, both will be returned
     :return: filters for expression searches
     """
-    db_session = orm.get_session()
-    expression_filter = orm.models.ExpressionSearchFilter
-    valid_types = ['feature', 'sample']
+    filter_file = pkg_resources.resource_filename('rnaget_service','orm/filters_expression.json')
 
-    try:
-        expression_filters = db_session.query(expression_filter)
-        if type in valid_types:
-            expression_filters = expression_filters.\
-                filter(expression_filter.filterType == type)
-        elif not type:
-            pass
-        else:
+    with open(filter_file, 'r') as ef:
+        expression_filters = json.load(ef)
+
+    if type:
+        response = []
+        if type not in ['feature', 'sample']:
             err = Error(message="Invalid type: " + type, code=400)
             return err, 400
 
-    except orm.ORMException as e:
-        err = _report_search_failed('expression search filter', e)
-        return err, 500
+        for expression_filter in expression_filters:
+            if expression_filter["filterType"] == type:
+                response.append(expression_filter)
+    else:
+        response = expression_filters
 
-    return [orm.dump(x) for x in expression_filters], 200
+    return response, 200
 
 
 @apilog
@@ -491,6 +500,7 @@ def get_versions():
         return err, 500
 
     return [entry.version for entry in versions], 200
+
 
 @apilog
 def post_change_log(change_log_record):
@@ -614,9 +624,8 @@ def get_study_by_project(projectID):
         study_id_list = [x.id for x in studies]
     return study_id_list
 
+
 # TODO: setup DRS/DOS for temp files and hdf5 storage?
-
-
 @apilog
 def tmp_download(token):
     """
@@ -638,9 +647,9 @@ def expression_download(token):
 
 
 def generate_file_response(results, file_type, file_id, study_id):
-    base_url = flask.request.url_root[:-1] + BasePath
+    base_url = app.config.get('BASE_DL_URL') + BasePath
+    tmp_dir = app.config.get('TMP_DIRECTORY')
 
-    tmp_dir = os.path.join(os.path.dirname(app.instance_path), 'data/tmp/')
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 

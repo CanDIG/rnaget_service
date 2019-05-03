@@ -74,30 +74,6 @@ class Expression(Base):
     __table_args__ = ()
 
 
-class SearchFilter(Base):
-    """
-    SQLAlchemy class/table for search filters
-    """
-    __tablename__ = 'searchfilters'
-    version = Column(String(10), default="")
-    filter = Column(String(100), primary_key=True)
-    description = Column(String(100), default="")
-    # specify which table the filter is used in
-    filter_for = Column(JsonArray())
-    __table_args__ = ()
-
-
-class ExpressionSearchFilter(Base):
-    """
-    SQLAlchemy class/table for expression search filters
-    """
-    __tablename__ = 'expressionsearchfilters'
-    filterType = Column(String(100), primary_key=True)
-    filters = Column(JsonArray())
-    created = Column(DateTime())
-    __table_args__ = ()
-
-
 class ChangeLog(Base):
     """
     SQLAlchemy class/table for listing changes to the database with version update

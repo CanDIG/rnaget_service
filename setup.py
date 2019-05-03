@@ -31,7 +31,8 @@ with open("requirements.txt") as requirements:
         version_pin = line.split()[0]
         install_requires.append(version_pin)
 
-data_files = [('api', ['rnaget_service/api/rnaget.yaml'])]
+data_files = [('api', ['rnaget_service/api/rnaget.yaml']),
+              ('data', ['rnaget_service/expression/feature_mapping_HGNC.tsv'])]
 
 setup(
     author="BCGSC",
@@ -59,11 +60,11 @@ setup(
     tests_require=test_requirements,
     data_files=data_files,
     url='https://github.com/CanDIG/rnaget_service',
-    version='0.9.0',
+    version='0.9.1',
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'rnaget_service = rnaget_service.__main__:main'
+            'rnaget_service = rnaget_service.app:main'
             ]
         },
 )
