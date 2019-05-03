@@ -66,6 +66,10 @@ paths:
           description: Project provided in body does not pass schema validation
           schema:
             $ref: '#/definitions/Error'
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "405":
           description: Forbidden to overwrite project in post
           schema:
@@ -107,9 +111,12 @@ paths:
               $ref: '#/definitions/project'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /projects/search/filters:
     get:
       tags:
@@ -129,9 +136,12 @@ paths:
               $ref: '#/definitions/searchFilter'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /projects/{projectId}:
     get:
       tags:
@@ -157,10 +167,14 @@ paths:
             $ref: '#/definitions/project'
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: Project not found
-#      security:
-#        - api_key: []
+      security:
+        - api_key: []
   /studies:
     post:
       tags:
@@ -184,6 +198,10 @@ paths:
               format: url
         "400":
           description: Project provided in body does not pass schema validation
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Authorisation error
           schema:
             $ref: '#/definitions/Error'
         "405":
@@ -233,9 +251,12 @@ paths:
               $ref: '#/definitions/study'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /studies/search/filters:
     get:
       tags:
@@ -255,9 +276,12 @@ paths:
               $ref: '#/definitions/searchFilter'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /studies/{studyId}:
     get:
       tags:
@@ -283,10 +307,14 @@ paths:
             $ref: '#/definitions/study'
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: Study not found
-#      security:
-#      - api_key: []
+      security:
+      - api_key: []
   /expressions:
     post:
       tags:
@@ -310,6 +338,10 @@ paths:
               format: url
         "400":
           description: Expression provided in body does not pass schema validation
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Authorisation error
           schema:
             $ref: '#/definitions/Error'
         "405":
@@ -403,9 +435,12 @@ paths:
               $ref: '#/definitions/expression'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /expressions/search/filters:
     get:
       tags:
@@ -431,9 +466,12 @@ paths:
               $ref: '#/definitions/expressionSearchFilter'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /expressions/{expressionId}:
     get:
       tags:
@@ -458,10 +496,14 @@ paths:
             $ref: '#/definitions/expression'
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: Expression not found
-#      security:
-#      - api_key: []
+      security:
+      - api_key: []
   /expressions/download/{token}:
     get:
       tags:
@@ -481,6 +523,10 @@ paths:
           description: Successful operation
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: File not found
   /changelog:
@@ -506,6 +552,10 @@ paths:
               format: url
         "400":
           description: Change log provided in body does not pass schema validation
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Authorisation error
           schema:
             $ref: '#/definitions/Error'
         "405":
@@ -536,9 +586,12 @@ paths:
               type: string
         "400":
           description: Invalid tag value
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /changelog/{version}:
     get:
       tags:
@@ -563,10 +616,14 @@ paths:
             $ref: '#/definitions/changeLog'
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: Change log not found
-#      security:
-#      - api_key: []
+      security:
+      - api_key: []
   /files/{fileID}:
     get:
       tags:
@@ -591,10 +648,14 @@ paths:
             $ref: '#/definitions/file'
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: File not found
-#      security:
-#      - api_key: []
+      security:
+      - api_key: []
   /files/search:
     get:
       tags:
@@ -638,9 +699,12 @@ paths:
               $ref: '#/definitions/file'
         "400":
           description: Error
-#      security:
-#      - rna_auth:
-#        - read:expression
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /download/{token}:
     get:
       tags:
@@ -660,6 +724,10 @@ paths:
           description: Successful operation
         "400":
           description: Invalid ID supplied
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
         "404":
           description: File not found
 
@@ -818,13 +886,14 @@ definitions:
       name: file
 
 securityDefinitions:
-  rna_auth:
-    type: oauth2
-    authorizationUrl: http://ga4gh.org/oauth/dialog
-    flow: implicit
-    scopes:
-      read:expression: read expression
+#  rna_auth:
+#    type: oauth2
+#    authorizationUrl: http://ga4gh.org/oauth/dialog
+#    flow: implicit
+#    scopes:
+#      read:expression: read expression
   api_key:
     type: apiKey
     name: api_key
     in: header
+    x-apikeyInfoFunc: rnaget_service.auth.auth_key

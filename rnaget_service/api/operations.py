@@ -126,6 +126,7 @@ def get_project_by_id(projectId):
 
     return orm.dump(specified_project), 200
 
+
 @apilog
 def post_project(project_record):
     db_session = orm.get_session()
