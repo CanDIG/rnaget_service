@@ -34,15 +34,10 @@ npm install -g dredd
 
 ### Running
 
-To run the service with a bootstrapped demo database, use the following:
-
 ```
-rnaget_service --host=xxxx --port=xxxx --loglevel=WARN --database=demo
-```
-
 Once running, a Swagger UI can be accessed at: `/rnaget/ui`
 
-To specify your own database & log files, the server can be started with:
+To specify your own database & log output, the server can be started with:
 
 ```
 rnaget_service --host=xxxx --port=xxxx --database=path/to/db --logfile=/path/to/logs --loglevel=WARN
