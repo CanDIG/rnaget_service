@@ -34,7 +34,6 @@ npm install -g dredd
 
 ### Running
 
-```
 Once running, a Swagger UI can be accessed at: `/rnaget/ui`
 
 To specify your own database & log output, the server can be started with:
