@@ -501,7 +501,7 @@ def search_expression_filters(filterType=None):
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
 
-    if type:
+    if filterType:
         response = []
         if type not in ['feature', 'sample']:
             err = Error(message="Invalid type: " + filterType, code=400)
