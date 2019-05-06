@@ -12,3 +12,12 @@ class ThresholdValueError(ValueError):
     def __init__(self):
         message = "Threshold array must be formatted: feature_1,threshold_1,...,feature_n,threshold_n"
         super().__init__(message)
+
+
+class IdentifierFormatError(ValueError):
+    """
+    Custom exception for validation fail on UUID string parameters
+    """
+    def __init__(self, identifier):
+        message = "{} parameters must be correctly formatted UUID strings".format(identifier)
+        super().__init__(message)

@@ -17,7 +17,7 @@ from rnaget_service.orm import models
 from rnaget_service.api.logging import apilog, logger
 from rnaget_service.api.logging import structured_log as struct_log
 from rnaget_service.api.models import Error, BasePath, Version
-from rnaget_service.api.exceptions import ThresholdValueError
+from rnaget_service.api.exceptions import ThresholdValueError, IdentifierFormatError
 from rnaget_service.expression.rnaget_query import ExpressionQueryTool
 
 app = flask.current_app
@@ -111,11 +111,14 @@ def get_project_by_id(projectId):
     project = orm.models.Project
 
     try:
+        validate_uuid_string('id', projectId)
         specified_project = db_session.query(project)\
             .get(projectId)
-    except exc.StatementError:
-        err = Error(message="Query id must be a valid UUID: " + str(projectId), code=404)
-        return err, 404
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
     except orm.ORMException as e:
         err = _report_search_failed('project', e, project_id=str(projectId))
         return err, 500
@@ -204,11 +207,16 @@ def get_study_by_id(studyId):
     study = orm.models.Study
 
     try:
+        validate_uuid_string('studyID', studyId)
         specified_study = db_session.query(study)\
             .get(studyId)
-    except exc.StatementError:
-        err = Error(message="Query id must be a valid UUID: " + str(studyId), code=404)
-        return err, 404
+
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
     except orm.ORMException as e:
         err = _report_search_failed('study', e, study_id=studyId)
         return err, 500
@@ -250,12 +258,14 @@ def post_study(study_record):
 
     return study_record, 201, {'Location': BasePath + '/studies/' + str(iid)}
 
+
 @apilog
-def search_studies(tags=None, version=None):
+def search_studies(tags=None, version=None, projectID=None):
     """
 
     :param tags: optional list of tags
     :param version:
+    :param projectID:
     :return: studies that match the filters
     """
     db_session = orm.get_session()
@@ -268,6 +278,16 @@ def search_studies(tags=None, version=None):
         if tags:
             # return any study that matches at least one tag
             studies = studies.filter(or_(*[study.tags.contains(tag) for tag in tags]))
+        if projectID:
+            validate_uuid_string('projectID', projectID)
+            studies = studies.filter(study.parentProjectID == projectID)
+
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
     except orm.ORMException as e:
         err = _report_search_failed('project', e)
         return err, 500
@@ -311,10 +331,13 @@ def get_expression_by_id(expressionId):
     expression = orm.models.File
 
     try:
+        validate_uuid_string('id', expressionId)
         expr_matrix = db_session.query(expression).get(expressionId)
-    except exc.StatementError:
-        err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
-        return err, 404
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
     except orm.ORMException as e:
         err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
@@ -397,8 +420,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             # return any project that matches at least one tag
             expressions = expressions.filter(or_(*[expression.tags.contains(tag) for tag in tags]))
         if studyID:
+            validate_uuid_string('studyID', studyID)
             expressions = expressions.filter(expression.studyID == studyID)
         if projectID:
+            validate_uuid_string('projectID', projectID)
             study_list = get_study_by_project(projectID)
             expressions = expressions.filter(expression.studyID.in_(study_list))
 
@@ -451,6 +476,12 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
             return responses, 200
 
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
         return err, 500
@@ -459,10 +490,10 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
 
 @apilog
-def search_expression_filters(type=None):
+def search_expression_filters(filterType=None):
     """
 
-    :param type: optional one of `feature` or `sample`. If blank, both will be returned
+    :param filterType: optional one of `feature` or `sample`. If blank, both will be returned
     :return: filters for expression searches
     """
     filter_file = pkg_resources.resource_filename('rnaget_service','orm/filters_expression.json')
@@ -473,11 +504,11 @@ def search_expression_filters(type=None):
     if type:
         response = []
         if type not in ['feature', 'sample']:
-            err = Error(message="Invalid type: " + type, code=400)
+            err = Error(message="Invalid type: " + filterType, code=400)
             return err, 400
 
         for expression_filter in expression_filters:
-            if expression_filter["filterType"] == type:
+            if expression_filter["filterType"] == filterType:
                 response.append(expression_filter)
     else:
         response = expression_filters
@@ -567,7 +598,13 @@ def get_file(fileID):
     file = orm.models.File
 
     try:
+        validate_uuid_string('fileID', fileID)
         file_q = db_session.query(file).get(fileID)
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
     except orm.ORMException as e:
         err = _report_search_failed('file', e, file_id=fileID)
         return err, 500
@@ -597,12 +634,19 @@ def search_files(tags=None, projectID=None, studyID=None, fileType=None):
         if tags:
             files = files.filter(or_(*[file.tags.contains(tag) for tag in tags]))
         if projectID:
+            validate_uuid_string('projectID', projectID)
             study_list = get_study_by_project(projectID)
             files = files.filter(file.studyID.in_(study_list))
         if studyID:
+            validate_uuid_string('studyID', studyID)
             files = files.filter(file.studyID == studyID)
         if fileType:
             files = files.filter(file.fileType == fileType)
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
     except orm.ORMException as e:
         err = _report_search_failed('file', e)
         return err, 500
@@ -753,10 +797,15 @@ def get_expression_file_path(expressionId):
     expression = orm.models.File
 
     try:
+        validate_uuid_string('id', expressionId)
         expr_matrix = db_session.query(expression).get(expressionId)
-    except exc.StatementError:
-        err = Error(message="Query id must be a valid UUID: " + str(expressionId), code=404)
-        return err, 404
+
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
     except orm.ORMException as e:
         err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
@@ -790,3 +839,16 @@ def create_tmp_file_record(file_record):
         return err, 500
 
     return file_record
+
+
+def validate_uuid_string(field_name, uuid_str):
+    """
+    Validate that the id parameter is a valid UUID string
+    :param uuid_str: query parameter
+    :param field_name: id field name
+    """
+    try:
+        uuid.UUID(uuid_str)
+    except ValueError:
+        raise IdentifierFormatError(field_name)
+    return

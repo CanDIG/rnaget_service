@@ -22,6 +22,7 @@ def auth_key(api_key, required_scopes=None):
     fc = flask.current_app.config
     # Allow CanDIG API gateway to handle auth (not for standalone use)
     if fc.get('AUTH_METHOD') == 'GATEWAY':
+        # TODO: use gateway client certificate instead
         fh = flask.request.headers
         if not fh["Host"] == fc.get('GATEWAY_HOST'):
             _report_proxy_auth_error(api_key)

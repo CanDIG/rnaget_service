@@ -452,7 +452,7 @@ paths:
       - application/xml
       - application/json
       parameters:
-      - name: type
+      - name: filterType
         in: query
         description: one of `feature` or `sample` reflecting which axis to request filters for.  If blank, both will be returned
         required: false
