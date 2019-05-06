@@ -503,7 +503,7 @@ def search_expression_filters(filterType=None):
 
     if filterType:
         response = []
-        if type not in ['feature', 'sample']:
+        if filterType not in ['feature', 'sample']:
             err = Error(message="Invalid type: " + filterType, code=400)
             return err, 400
 

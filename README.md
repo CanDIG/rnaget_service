@@ -18,7 +18,7 @@ For more information about the schemas used visit https://github.com/ga4gh-rnase
 
 ## Installation
 
-The server software can be installed in a virtual environment:
+The server software can be installed in a py3.6+ virtual environment:
 
 ```
 pip install -r requirements.txt
@@ -34,18 +34,12 @@ npm install -g dredd
 
 ### Running
 
-By default a demo server can be run with:
-
-```
-python3 -m rnaget_service --loglevel=WARN
-```
-
 Once running, a Swagger UI can be accessed at: `/rnaget/ui`
 
-To specify your own database & log files, the server can be started with:
+To specify your own database & log output, the server can be started with:
 
 ```
-python3 -m rnaget_service --database=test.db --logfile=test.log --loglevel=WARN
+rnaget_service --host=xxxx --port=xxxx --database=path/to/db --logfile=/path/to/logs --loglevel=WARN
 ```
 
 For testing, the dredd config is currently set up to launch the service itself, so no server needs be running:
