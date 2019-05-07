@@ -189,9 +189,9 @@ paths:
             $ref: '#/definitions/study'
       responses:
         "201":
-          description: New project created
+          description: New study created
           schema:
-            $ref: '#/definitions/project'
+            $ref: '#/definitions/study'
           headers:
             Location:
               type: string
@@ -426,6 +426,14 @@ paths:
         type: array
         items:
           type: string
+      - name: featureThresholdLabel
+        in: query
+        description: >
+        one of `id` or `name` or `accession` reflecting what feature label type is
+        being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
+        x-example: name
+        required: false
+        type: string
       responses:
         "200":
           description: Successful operation

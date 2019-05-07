@@ -295,9 +295,32 @@ class ExpressionQueryTool(object):
         else:
             raise ValueError("Invalid argument values provided")
 
-    def search_threshold(self, ft_list, ft_type="min"):
+    def search_threshold(self, ft_list, ft_type="min", feature_label="name"):
         feature_list = list(zip(*ft_list))[0]
-        return self._search_features(feature_list, ft_list=ft_list, ft_type=ft_type)
+        supplementary_feature_label = []
+
+        if feature_label in ["id", "name", "accession"]:
+            df = pd.read_csv(self._feature_map, sep='\t')
+            feature_list_id = []
+            if feature_label == "id":
+                feature_list_id = feature_list
+            else:
+                for feature in feature_list:
+                    if feature_label == "name":
+                        df_lookup = df.loc[df['gene_symbol'] == feature].ensembl_id
+                    else:
+                        df_lookup = df.loc[df['accession_numbers'] == feature].ensembl_id
+                    if len(df_lookup) > 0:
+                        feature_list_id.append(df_lookup.values[0])
+                        supplementary_feature_label.append(feature)
+
+                supplementary_feature_label = [suppl.encode('utf-8') for suppl in supplementary_feature_label]
+        else:
+            raise ValueError("Invalid feature label values provided")
+
+        return self._search_features(
+            feature_list_id, ft_list=ft_list, ft_type=ft_type, supplementary_feature_label=supplementary_feature_label
+        )
 
     def _write_hdf5_results(self, results, sample_list, feature_list, expressions,
                             suppl_features_label=None, transpose=False):

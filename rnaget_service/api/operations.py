@@ -390,7 +390,8 @@ def post_expression(expression_record):
 @apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
                       version=None, featureIDList=None, featureNameList=None,
-                      featureAccessionList=None, minExpression=None, maxExpression=None, file_type=".h5"):
+                      featureAccessionList=None, minExpression=None, maxExpression=None,
+                      featureThresholdLabel="name", file_type=".h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -452,18 +453,19 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                         logger().warning(struct_log(action=str(err)))
                         continue
 
-                    if sampleID or featureIDList:
-                        q = h5query.search(sample_id=sampleID, feature_list_id=featureIDList)
-                    elif featureNameList:
-                        q = h5query.search(feature_list_name=featureNameList)
-                    elif featureAccessionList:
-                        q = h5query.search(feature_list_accession=featureAccessionList)
+                    if sampleID or featureIDList or featureNameList or featureAccessionList:
+                        q = h5query.search(
+                            sample_id=sampleID,
+                            feature_list_id=featureIDList,
+                            feature_list_name=featureNameList,
+                            feature_list_accession=featureAccessionList
+                        )
                     elif minExpression:
                         threshold_array = convert_threshold_array(minExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='min')
+                        q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=featureThresholdLabel)
                     else:
                         threshold_array = convert_threshold_array(maxExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='max')
+                        q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=featureThresholdLabel)
 
                     h5query.close()
                     responses.append(generate_file_response(q, file_type, output_file_id, expr.studyID))
