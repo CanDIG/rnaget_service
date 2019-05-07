@@ -428,9 +428,7 @@ paths:
           type: string
       - name: featureThresholdLabel
         in: query
-        description: >
-        one of `id` or `name` or `accession` reflecting what feature label type is
-        being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
+        description: one of `id` or `name` or `accession` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
         x-example: name
         required: false
         type: string
