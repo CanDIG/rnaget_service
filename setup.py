@@ -64,7 +64,10 @@ setup(
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'rnaget_service = rnaget_service.app:main'
+            'rnaget_service = rnaget_service.app:main',
+            'rnaget_add_expression = rnaget_service.scripts.post_data:add_expression_file',
+            'rnaget_add_project = rnaget_service.scripts.post_project:add_project',
+            'rnaget_add_study = rnaget_service.scripts.post_study:add_study'
             ]
         },
 )

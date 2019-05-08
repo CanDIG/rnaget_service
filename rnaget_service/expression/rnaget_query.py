@@ -21,7 +21,7 @@ class ExpressionQueryTool(object):
             - feature id
         - expression threshold array:
             - either minThreshold or maxThreshold
-            - [(featureId1, threshold1), (featureId2, theshold2)...]
+            - [(feature1, threshold1), (feature2, theshold2)...]
     """
 
     def __init__(self, input_file, output_file=None, include_metadata=False, output_type=".h5", feature_map=None):
@@ -72,17 +72,23 @@ class ExpressionQueryTool(object):
         return self._file[self._counts]
 
     def _get_hdf5_indices(self, axis, id_list):
-        indices = OrderedDict()
+        """
+
+        :param axis: axis data set from hdf5 file
+        :param id_list: list of id's to convert into indices
+        :return: an ordered dict of id,index pairs (from index low->high)
+        """
+        indices = {}
         encoded_list = list(map(str.encode, id_list))
         arr = self._file[axis][:]
         for encoded_id in encoded_list:
             lookup = np.where(arr == encoded_id)[0]
             if len(lookup) > 0:
                 indices[encoded_id.decode()] = lookup[0]
-        return indices
+        sorted_indices = sorted(indices.items(), key=lambda i: i[1])
+        return OrderedDict([(k,v) for (k,v) in sorted_indices])
 
     def _search_sample(self, sample_id):
-        # TODO: support multiple sample_id list searches at some point?
         expression = self.get_expression_matrix()
         sample_index = self._get_hdf5_indices(self._samples, [sample_id]).get(sample_id)
 
@@ -125,16 +131,22 @@ class ExpressionQueryTool(object):
         samples = self.get_samples()
         indices = self._get_hdf5_indices(self._features, feature_list)
         results = self._build_results_template(expression)
+        counts = None
         feature_expressions = []
-        sample_expressions =[]
+        sample_expressions = []
+        supplementary_feature_array = None
+
+        if supplementary_feature_label:
+            supplementary_feature_array = []
+            for feature_id in indices:
+                supplementary_feature_array.append(supplementary_feature_label[feature_id])
 
         if self._include_metadata:
             counts = self.get_raw_counts()
-            feature_counts = []
+
+        feature_slices = list(indices.values())
 
         if ft_list and ft_type:
-            samples_list = []
-
             if ft_type == "min":
                 def ft_compare(x,y):
                     return x > y
@@ -145,45 +157,26 @@ class ExpressionQueryTool(object):
             if self._output_format == ".json":
                 results["features"] = list(feature_list)
 
-            for idx, sample in enumerate(expression):
-                include = True
-                threshold_samples = []
+            # read slices in to memory as a data frame
+            expression_df = pd.DataFrame(expression[:,feature_slices])
 
-                if self._include_metadata:
-                    threshold_counts = []
+            # slice data frame while samples remain
+            for feature_id, threshold in ft_list:
+                if len(expression_df) > 0:
+                    df_feature_index = list(indices.keys()).index(feature_id)
+                    expression_df = expression_df[ft_compare(expression_df[df_feature_index],threshold)]
+                else:
+                    break
 
-                for feature_id, threshold in ft_list:
-                    feature_index = indices[feature_id]
-
-                    if not ft_compare(expression[idx][feature_index], threshold):
-                        include = False
-                        break
-                    else:
-                        threshold_samples.append(sample[feature_index])
-
-                        if self._include_metadata:
-                            threshold_counts.append(counts[idx][feature_index])
-
-                if include:
-                    sample_expressions.append(threshold_samples)
-                    samples_list.append(samples[idx].decode())
-                    if self._include_metadata:
-                        feature_counts.append(threshold_counts)
+            sample_expressions = expression_df.values
+            samples_list = [samples[idx].decode() for idx in expression_df.index]
 
         else:
-            for feature_id in indices:
-                if self._output_format == ".json":
-                    results["features"].append(feature_id)
-                slice_index = indices[feature_id]
+            if self._output_format == ".json":
+                results["features"] = list(indices.keys())
 
-                feature_expressions.append(list(expression[...,slice_index]))
-
-                if self._include_metadata:
-                    feature_counts.append(list(counts[...,slice_index]))
-
+            feature_expressions = list(expression[:, feature_slices])
             samples_list = list(map(bytes.decode, self.get_samples()))
-            if self._include_metadata:
-                feature_counts = np.transpose(feature_counts)
 
         if self._output_format == ".json":
             if feature_expressions:
@@ -193,6 +186,7 @@ class ExpressionQueryTool(object):
                 results["expression"] = dict(zip(samples_list, sample_expressions))
 
             if self._include_metadata:
+                feature_counts = list(counts[:, feature_slices])
                 counts_zip = zip(*feature_counts)
                 results["metadata"]["raw_counts"] = dict(zip(samples_list, (map(list,counts_zip))))
 
@@ -200,16 +194,18 @@ class ExpressionQueryTool(object):
             encoded_samples = [sample.encode('utf-8') for sample in samples_list]
             encoded_features = [feature.encode('utf-8') for feature in indices]
 
-            if feature_expressions:
+            if len(feature_expressions)>0:
                 results = self._write_hdf5_results(
                     results, encoded_samples, encoded_features, feature_expressions,
-                    suppl_features_label=supplementary_feature_label, transpose=True)
+                    suppl_features_label=supplementary_feature_array)
 
-            elif sample_expressions:
+            elif len(sample_expressions)>0:
                 results = self._write_hdf5_results(
-                    results, encoded_samples, encoded_features, sample_expressions)
+                    results, encoded_samples, encoded_features, sample_expressions,
+                    suppl_features_label=supplementary_feature_array)
 
             if self._include_metadata:
+                feature_counts = list(counts[:, feature_slices])
                 results = self._write_hdf5_metadata(
                     results, len(encoded_samples), len(encoded_features), counts=feature_counts)
 
@@ -220,7 +216,8 @@ class ExpressionQueryTool(object):
         General search function. Accepts any combination of the following arguments:
         - sample_id || feature_list_id or feature_list_accession or feature_list_name || sample_id and feature_list
         """
-        supplementary_feature_label = []
+        supplementary_feature_label = {}
+        feature_counts = None
 
         if feature_list_accession or feature_list_name:
             if feature_list_id or (feature_list_accession and feature_list_name):
@@ -229,45 +226,44 @@ class ExpressionQueryTool(object):
             feature_list_id = []
 
             if feature_list_name:
-                for feature_name in feature_list_name:
-                    df_lookup = df.loc[df['gene_symbol'] == feature_name].ensembl_id
-                    if len(df_lookup) > 0:
-                        feature_list_id.append(df_lookup.values[0])
-                        supplementary_feature_label.append(feature_name)
+                df_key = 'gene_symbol'
+                feature_list = feature_list_name
             else:
-                for feature_accession in feature_list_accession:
-                    df_lookup = df.loc[df['accession_numbers'] == feature_list_accession].ensembl_id
-                    if len(df_lookup) > 0:
-                        feature_list_id.append(df_lookup.values[0])
-                        supplementary_feature_label.append(feature_accession)
+                df_key = 'accession_numbers'
+                feature_list = feature_list_accession
 
-            supplementary_feature_label = [suppl.encode('utf-8') for suppl in supplementary_feature_label]
+            for feature_value in feature_list:
+                df_lookup = df.loc[df[df_key] == feature_value].ensembl_id
+                if len(df_lookup) > 0:
+                    gene_id = df_lookup.values[0]
+                    feature_list_id.append(gene_id)
+                    supplementary_feature_label[gene_id] = feature_value
+
+            for sf in supplementary_feature_label:
+                supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
 
         if sample_id and feature_list_id:
             expression = self.get_expression_matrix()
             sample_index = self._get_hdf5_indices(self._samples, [sample_id]).get(sample_id)
             feature_indices = self._get_hdf5_indices(self._features, feature_list_id)
             results = self._build_results_template(expression)
+            supplementary_feature_array = None
+
+            if supplementary_feature_label:
+                supplementary_feature_array = []
+                for feature_id in feature_indices:
+                    supplementary_feature_array.append(supplementary_feature_label[feature_id])
 
             if sample_index is not None:
-                feature_expressions = []
-                sample_expressions = expression[sample_index,...]
+                feature_slices = list(feature_indices.values())
+                feature_expressions = list(expression[sample_index, feature_slices])
 
                 if self._include_metadata:
                     counts = self.get_raw_counts()
-                    sample_counts = counts[sample_index,...]
-                    feature_counts = []
-
-                for feature_id in feature_indices:
-                    if self._output_format == ".json":
-                        results["features"].append(feature_id)
-                    slice_index = feature_indices[feature_id]
-                    feature_expressions.append(sample_expressions[slice_index])
-
-                    if self._include_metadata:
-                        feature_counts.append(sample_counts[slice_index])
+                    feature_counts = list(counts[sample_index, feature_slices])
 
                 if self._output_format == ".json":
+                    results["features"] = list(feature_indices.keys())
                     results["expression"][sample_id] = feature_expressions
                     if self._include_metadata:
                         results["metadata"]["raw_counts"][sample_id] = feature_counts
@@ -278,11 +274,11 @@ class ExpressionQueryTool(object):
 
                     results = self._write_hdf5_results(
                         results, encoded_samples, encoded_features, feature_expressions,
-                        suppl_features_label=supplementary_feature_label, transpose=True)
+                        suppl_features_label=supplementary_feature_array)
 
                     if self._include_metadata:
                         results = self._write_hdf5_metadata(
-                            results, len(encoded_samples), len(encoded_features), counts=np.transpose(feature_counts))
+                            results, len(encoded_samples), len(encoded_features), counts=feature_counts)
 
             return results
 
@@ -295,9 +291,39 @@ class ExpressionQueryTool(object):
         else:
             raise ValueError("Invalid argument values provided")
 
-    def search_threshold(self, ft_list, ft_type="min"):
+    def search_threshold(self, ft_list, ft_type="min", feature_label="name"):
         feature_list = list(zip(*ft_list))[0]
-        return self._search_features(feature_list, ft_list=ft_list, ft_type=ft_type)
+        supplementary_feature_label = {}
+
+        if feature_label in ["id", "name", "accession"]:
+            feature_list_id = []
+            if feature_label == "id":
+                feature_list_id = feature_list
+            else:
+                df = pd.read_csv(self._feature_map, sep='\t')
+                ft_list_id = []
+                if feature_label == "name":
+                    df_key = "gene_symbol"
+                else:
+                    df_key = "accession_numbers"
+                for feature, threshold in ft_list:
+                    df_lookup = df.loc[df[df_key] == feature].ensembl_id
+                    if len(df_lookup) > 0:
+                        gene_id = df_lookup.values[0]
+                        feature_list_id.append(gene_id)
+                        ft_list_id.append((gene_id, threshold))
+                        supplementary_feature_label[gene_id] = feature
+
+                ft_list = ft_list_id
+
+                for sf in supplementary_feature_label:
+                    supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
+        else:
+            raise ValueError("Invalid feature label values provided")
+
+        return self._search_features(
+            feature_list_id, ft_list=ft_list, ft_type=ft_type, supplementary_feature_label=supplementary_feature_label
+        )
 
     def _write_hdf5_results(self, results, sample_list, feature_list, expressions,
                             suppl_features_label=None, transpose=False):
