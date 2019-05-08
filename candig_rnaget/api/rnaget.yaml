@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   title: RNA Seq API POC
-  version: "0.9.1"
+  version: "0.9.2"
 basePath: /rnaget
 consumes:
   - application/json
