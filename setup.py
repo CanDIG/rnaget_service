@@ -59,8 +59,8 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     data_files=data_files,
-    url='https://github.com/CanDIG/candig_rnaget',
-    download_url='https://github.com/CanDIG/candig_rnaget/archive/v0.9.2.tar.gz',
+    url='https://github.com/CanDIG/rnaget_service',
+    download_url='https://github.com/CanDIG/rnaget_service/archive/v0.9.2.tar.gz',
     version='0.9.2',
     zip_safe=False,
     entry_points={
