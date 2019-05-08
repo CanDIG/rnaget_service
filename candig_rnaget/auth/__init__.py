@@ -4,8 +4,8 @@ Auth module for service
 
 import flask
 
-from rnaget_service.api.logging import structured_log as struct_log
-from rnaget_service.api.logging import logger
+from candig_rnaget.api.logging import structured_log as struct_log
+from candig_rnaget.api.logging import logger
 
 
 def _report_proxy_auth_error(key, **kwargs):

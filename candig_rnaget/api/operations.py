@@ -12,13 +12,13 @@ import pkg_resources
 
 from sqlalchemy import or_
 from sqlalchemy import exc
-from rnaget_service import orm
-from rnaget_service.orm import models
-from rnaget_service.api.logging import apilog, logger
-from rnaget_service.api.logging import structured_log as struct_log
-from rnaget_service.api.models import Error, BasePath, Version
-from rnaget_service.api.exceptions import ThresholdValueError, IdentifierFormatError
-from rnaget_service.expression.rnaget_query import ExpressionQueryTool
+from candig_rnaget import orm
+from candig_rnaget.orm import models
+from candig_rnaget.api.logging import apilog, logger
+from candig_rnaget.api.logging import structured_log as struct_log
+from candig_rnaget.api.models import Error, BasePath, Version
+from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
+from candig_rnaget.expression.rnaget_query import ExpressionQueryTool
 
 app = flask.current_app
 
@@ -306,7 +306,7 @@ def search_study_filters():
 
 
 def get_search_filters(valid_filters):
-    filter_file = pkg_resources.resource_filename('rnaget_service', 'orm/filters_search.json')
+    filter_file = pkg_resources.resource_filename('candig_rnaget', 'orm/filters_search.json')
 
     with open(filter_file, 'r') as ef:
         search_filters = json.load(ef)
@@ -439,7 +439,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                 for expr in expressions:
                     output_file_id = uuid.uuid1()
                     output_filepath = tmp_dir+str(output_file_id)+file_type
-                    feature_map = pkg_resources.resource_filename('rnaget_service',
+                    feature_map = pkg_resources.resource_filename('candig_rnaget',
                                                                   'expression/feature_mapping_HGNC.tsv')
                     try:
                         h5query = ExpressionQueryTool(
@@ -498,7 +498,7 @@ def search_expression_filters(filterType=None):
     :param filterType: optional one of `feature` or `sample`. If blank, both will be returned
     :return: filters for expression searches
     """
-    filter_file = pkg_resources.resource_filename('rnaget_service','orm/filters_expression.json')
+    filter_file = pkg_resources.resource_filename('candig_rnaget','orm/filters_expression.json')
 
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
