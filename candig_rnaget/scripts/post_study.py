@@ -8,8 +8,8 @@ import argparse
 import requests
 import json
 
-from rnaget_service.api.operations import validate_uuid_string
-from rnaget_service.api.exceptions import AuthorizationError
+from candig_rnaget.api.operations import validate_uuid_string
+from candig_rnaget.api.exceptions import AuthorizationError
 
 
 def add_study(args=None):

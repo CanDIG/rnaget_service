@@ -4,8 +4,8 @@ SQLAlchemy models for the database
 from sqlalchemy import Column, String, DateTime, Integer
 from sqlalchemy import UniqueConstraint, ForeignKey
 from sqlalchemy import TypeDecorator
-from rnaget_service.orm.guid import GUID
-from rnaget_service.orm import Base
+from candig_rnaget.orm.guid import GUID
+from candig_rnaget.orm import Base
 import json
 
 

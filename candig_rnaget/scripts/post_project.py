@@ -8,7 +8,7 @@ import argparse
 import requests
 import json
 
-from rnaget_service.api.exceptions import AuthorizationError
+from candig_rnaget.api.exceptions import AuthorizationError
 
 
 def add_project(args=None):

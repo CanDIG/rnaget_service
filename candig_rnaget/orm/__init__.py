@@ -54,7 +54,7 @@ def init_db(uri=None):
     Creates the DB engine + ORM
     """
     global _ENGINE
-    import rnaget_service.orm.models # noqa401 #pylint: disable=unused-variable
+    import candig_rnaget.orm.models # noqa401 #pylint: disable=unused-variable
     if not uri:
         uri = 'sqlite:///' + options.dbfile
     _ENGINE = create_engine(uri, convert_unicode=True)

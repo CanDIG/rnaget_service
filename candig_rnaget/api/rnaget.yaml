@@ -45,7 +45,7 @@ paths:
     post:
       tags:
       - projects
-      operationId: rnaget_service.api.operations.post_project
+      operationId: candig_rnaget.api.operations.post_project
       summary: Add a project to the database
       description: Creates and returns a new project record
       parameters:
@@ -84,7 +84,7 @@ paths:
       - projects
       summary: Search for projects matching filters
       description: Search for projects matching filters
-      operationId: rnaget_service.api.operations.search_projects
+      operationId: candig_rnaget.api.operations.search_projects
       produces:
       - application/xml
       - application/json
@@ -123,7 +123,7 @@ paths:
       - projects
       summary: Returns filters for project searches
       description: Get filters for project searches
-      operationId: rnaget_service.api.operations.search_project_filters
+      operationId: candig_rnaget.api.operations.search_project_filters
       produces:
       - application/xml
       - application/json
@@ -148,7 +148,7 @@ paths:
       - projects
       summary: Find project by ID
       description: Returns a single specified project
-      operationId: rnaget_service.api.operations.get_project_by_id
+      operationId: candig_rnaget.api.operations.get_project_by_id
       produces:
       - application/xml
       - application/json
@@ -179,7 +179,7 @@ paths:
     post:
       tags:
       - studies
-      operationId: rnaget_service.api.operations.post_study
+      operationId: candig_rnaget.api.operations.post_study
       summary: Add a study to the database
       description: Creates and returns a new study record
       parameters:
@@ -218,7 +218,7 @@ paths:
       - studies
       summary: Search for studies matching filters
       description: Search for studies matching filters
-      operationId: rnaget_service.api.operations.search_studies
+      operationId: candig_rnaget.api.operations.search_studies
       produces:
       - application/xml
       - application/json
@@ -263,7 +263,7 @@ paths:
       - studies
       summary: Returns filters for study searches
       description: Get filters for study searches
-      operationId: rnaget_service.api.operations.search_study_filters
+      operationId: candig_rnaget.api.operations.search_study_filters
       produces:
       - application/xml
       - application/json
@@ -288,7 +288,7 @@ paths:
       - studies
       summary: Find study by ID
       description: Returns a single specified study
-      operationId: rnaget_service.api.operations.get_study_by_id
+      operationId: candig_rnaget.api.operations.get_study_by_id
       produces:
       - application/xml
       - application/json
@@ -319,7 +319,7 @@ paths:
     post:
       tags:
       - expressions
-      operationId: rnaget_service.api.operations.post_expression
+      operationId: candig_rnaget.api.operations.post_expression
       summary: Create an expression database entry and map to quant file
       description: Creates and returns a new expression record
       parameters:
@@ -358,7 +358,7 @@ paths:
       - expressions
       summary: Search for expressions matching filters
       description: Search for expressions matching filters
-      operationId: rnaget_service.api.operations.get_search_expressions
+      operationId: candig_rnaget.api.operations.get_search_expressions
       produces:
       - application/xml
       - application/json
@@ -453,7 +453,7 @@ paths:
       - expressions
       summary: Returns filters for project searches
       description: Get filters for project searches
-      operationId: rnaget_service.api.operations.search_expression_filters
+      operationId: candig_rnaget.api.operations.search_expression_filters
       produces:
       - application/xml
       - application/json
@@ -484,7 +484,7 @@ paths:
       - expressions
       summary: Find expression data by ID
       description: Returns a single specified expression matrix
-      operationId: rnaget_service.api.operations.get_expression_by_id
+      operationId: candig_rnaget.api.operations.get_expression_by_id
       produces:
       - application/xml
       - application/json
@@ -516,7 +516,7 @@ paths:
       - download hdf5
       summary: Download the file as HDF5
       description: Returns download URL for file
-      operationId: rnaget_service.api.operations.expression_download
+      operationId: candig_rnaget.api.operations.expression_download
       parameters:
       - name: token
         in: path
@@ -539,7 +539,7 @@ paths:
     post:
       tags:
       - changelog
-      operationId: rnaget_service.api.operations.post_change_log
+      operationId: candig_rnaget.api.operations.post_change_log
       summary: Add a change log to the database
       description: Creates and returns a new change log record
       parameters:
@@ -577,7 +577,7 @@ paths:
       tags:
       - getVersions
       summary: Get release versions of database
-      operationId: rnaget_service.api.operations.get_versions
+      operationId: candig_rnaget.api.operations.get_versions
       produces:
       - application/xml
       - application/json
@@ -604,7 +604,7 @@ paths:
       - changelog
       summary: Get change log for a specific release version
       description: Returns changes associated with specified database release version
-      operationId: rnaget_service.api.operations.get_change_log
+      operationId: candig_rnaget.api.operations.get_change_log
       produces:
       - application/xml
       - application/json
@@ -636,7 +636,7 @@ paths:
       - files
       summary: Get specific file
       description: Returns download URL for file
-      operationId: rnaget_service.api.operations.get_file
+      operationId: candig_rnaget.api.operations.get_file
       produces:
       - application/xml
       - application/json
@@ -668,7 +668,7 @@ paths:
       - files
       summary: Search for files matching filters
       description: Search for files matching filters.  Returns download URL or manifest of download URLs for matching file(s)
-      operationId: rnaget_service.api.operations.search_files
+      operationId: candig_rnaget.api.operations.search_files
       produces:
       - application/xml
       - application/json
@@ -717,7 +717,7 @@ paths:
       - download temp file
       summary: Download the file as an available file type
       description: Returns download URL for file
-      operationId: rnaget_service.api.operations.tmp_download
+      operationId: candig_rnaget.api.operations.tmp_download
       parameters:
       - name: token
         in: path
@@ -902,4 +902,4 @@ securityDefinitions:
     type: apiKey
     name: api_key
     in: header
-    x-apikeyInfoFunc: rnaget_service.auth.auth_key
+    x-apikeyInfoFunc: candig_rnaget.auth.auth_key

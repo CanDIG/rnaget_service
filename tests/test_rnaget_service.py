@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Tests for `rnaget_service` package."""
+"""Tests for `candig_rnaget` package."""
 
 import subprocess
 

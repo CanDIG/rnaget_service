@@ -8,9 +8,9 @@ import uuid
 import flask
 import os
 
-from rnaget_service import orm
-from rnaget_service.orm import models
-from rnaget_service.api.models import BasePath, Version
+from candig_rnaget import orm
+from candig_rnaget.orm import models
+from candig_rnaget.api.models import BasePath, Version
 
 
 def _load_expression(study_id):

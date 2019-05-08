@@ -31,8 +31,8 @@ with open("requirements.txt") as requirements:
         version_pin = line.split()[0]
         install_requires.append(version_pin)
 
-data_files = [('api', ['rnaget_service/api/rnaget.yaml']),
-              ('data', ['rnaget_service/expression/feature_mapping_HGNC.tsv'])]
+data_files = [('api', ['candig_rnaget/api/rnaget.yaml']),
+              ('data', ['candig_rnaget/expression/feature_mapping_HGNC.tsv'])]
 
 setup(
     author="BCGSC",
@@ -52,22 +52,23 @@ setup(
     install_requires=install_requires,
     license="GNU General Public License v3",
     include_package_data=True,
-    keywords='rnaget_service',
-    name='rnaget_service',
-    packages=find_packages(include=['rnaget_service']),
+    keywords='candig_rnaget',
+    name='candig_rnaget',
+    packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
     data_files=data_files,
     url='https://github.com/CanDIG/rnaget_service',
-    version='0.9.1',
+    download_url='https://github.com/CanDIG/rnaget_service/archive/v0.9.2.tar.gz',
+    version='0.9.2',
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'rnaget_service = rnaget_service.app:main',
-            'rnaget_add_expression = rnaget_service.scripts.post_data:add_expression_file',
-            'rnaget_add_project = rnaget_service.scripts.post_project:add_project',
-            'rnaget_add_study = rnaget_service.scripts.post_study:add_study'
+            'candig_rnaget = candig_rnaget.app:main',
+            'rnaget_add_expression = candig_rnaget.scripts.post_data:add_expression_file',
+            'rnaget_add_project = candig_rnaget.scripts.post_project:add_project',
+            'rnaget_add_study = candig_rnaget.scripts.post_study:add_study'
             ]
         },
 )

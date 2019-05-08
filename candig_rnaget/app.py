@@ -9,11 +9,11 @@ import pkg_resources
 import connexion
 
 from tornado.options import define
-import rnaget_service.orm
+import candig_rnaget.orm
 
 # Expose WSGI application
 app = connexion.FlaskApp(__name__, server='tornado')
-api_def = pkg_resources.resource_filename('rnaget_service',
+api_def = pkg_resources.resource_filename('candig_rnaget',
                                           'api/rnaget.yaml')
 app.add_api(api_def, strict_validation=True, validate_responses=True)
 application = app.app
@@ -39,8 +39,8 @@ def main(args=None):
     app.app.config['TMP_DIRECTORY'] = args.tmpdata
 
     define("dbfile", default=args.database)
-    rnaget_service.orm.init_db()
-    db_session = rnaget_service.orm.get_session()
+    candig_rnaget.orm.init_db()
+    db_session = candig_rnaget.orm.get_session()
 
     @app.app.teardown_appcontext
     def shutdown_session(exception=None):  # pylint:disable=unused-variable,unused-argument

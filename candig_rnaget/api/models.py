@@ -11,7 +11,7 @@ import json
 #
 # Read in the API definition, and parse it with Bravado
 #
-_API_DEF = pkg_resources.resource_filename('rnaget_service',
+_API_DEF = pkg_resources.resource_filename('candig_rnaget',
                                            'api/rnaget.yaml')
 _SPEC_DICT = yaml.safe_load(open(_API_DEF, 'r'))
 
