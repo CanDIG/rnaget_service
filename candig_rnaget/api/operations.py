@@ -134,10 +134,16 @@ def get_project_by_id(projectId):
 def post_project(project_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    project_record['id'] = iid
+    if not project_record.get('id'):
+        iid = uuid.uuid1()
+        project_record['id'] = iid
+    else:
+        iid = project_record['id']
+
+    if not project_record.get('version'):
+        project_record['version'] = Version
+
     project_record['created'] = datetime.datetime.utcnow()
-    project_record['version'] = Version
 
     try:
         orm_project = orm.models.Project(**project_record)
@@ -149,7 +155,7 @@ def post_project(project_record):
         db_session.add(orm_project)
         db_session.commit()
     except exc.IntegrityError:
-        err = _report_object_exists('project: '+project_record['name'], **project_record)
+        err = _report_object_exists('project: '+project_record['id'], **project_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('project', e, **project_record)
@@ -232,10 +238,16 @@ def get_study_by_id(studyId):
 def post_study(study_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    study_record['id'] = iid
+    if not study_record.get('id'):
+        iid = uuid.uuid1()
+        study_record['id'] = iid
+    else:
+        iid = study_record['id']
+
+    if not study_record.get('version'):
+        study_record['version'] = Version
+
     study_record['created'] = datetime.datetime.utcnow()
-    study_record['version'] = Version
 
     try:
         orm_study = orm.models.Study(**study_record)
@@ -247,7 +259,7 @@ def post_study(study_record):
         db_session.add(orm_study)
         db_session.commit()
     except exc.IntegrityError as e:
-        err = _report_object_exists('study: ' + study_record['name'], **study_record)
+        err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('study', e, **study_record)
@@ -353,17 +365,24 @@ def get_expression_by_id(expressionId):
 def post_expression(expression_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    base_url = app.config.get('BASE_DL_URL') + BasePath
+    if not expression_record.get('id'):
+        iid = uuid.uuid1()
+        expression_record['id'] = iid
+    else:
+        iid = expression_record['id']
 
-    expression_record['id'] = iid
+    if not expression_record.get('version'):
+        expression_record['version'] = Version
+
+    if not expression_record.get('URL'):
+        base_url = app.config.get('BASE_DL_URL') + BasePath
+        expression_record['URL'] = base_url + '/expressions/download/' + str(iid)
+
     expression_record['created'] = datetime.datetime.utcnow()
-    expression_record['version'] = Version
-    expression_record['URL'] = base_url+'/expressions/download/'+str(iid)
 
-    if expression_record['fileType'] != '.h5':
-        err = Error(message="Expression matrix must be fileType '.h5'", code=400)
-        return err, 400
+    # if expression_record['fileType'] != 'h5':
+    #     err = Error(message="Expression matrix must be fileType 'h5'", code=400)
+    #     return err, 400
 
     try:
         orm_expression = orm.models.File(**expression_record)
@@ -391,7 +410,7 @@ def post_expression(expression_record):
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
                       version=None, featureIDList=None, featureNameList=None,
                       featureAccessionList=None, minExpression=None, maxExpression=None,
-                      featureThresholdLabel="name", file_type=".h5"):
+                      featureThresholdLabel="name", file_type="h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -412,7 +431,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     try:
         # TODO: find better way to filter for expression data?
         expressions = db_session.query(expression)
-        expressions = expressions.filter(expression.fileType == ".h5")
+        expressions = expressions.filter(expression.fileType == "h5")
 
         # db queries
         if version:
@@ -438,7 +457,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             try:
                 for expr in expressions:
                     output_file_id = uuid.uuid1()
-                    output_filepath = tmp_dir+str(output_file_id)+file_type
+                    output_filepath = tmp_dir+str(output_file_id)+'.'+file_type
                     feature_map = pkg_resources.resource_filename('candig_rnaget',
                                                                   'expression/feature_mapping_HGNC.tsv')
                     try:
@@ -489,6 +508,15 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         return err, 500
 
     return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+
+
+@apilog
+def get_expressions():
+    """
+
+    :return: available expression matrices
+    """
+    return get_search_expressions()
 
 
 @apilog
@@ -700,12 +728,12 @@ def generate_file_response(results, file_type, file_id, study_id):
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 
-    if file_type == ".json":
-        tmp_file_path = os.path.join(tmp_dir, str(file_id) + file_type)
+    if file_type == "json":
+        tmp_file_path = os.path.join(tmp_dir, str(file_id)+'.'+file_type)
         with open(tmp_file_path, 'w') as outfile:
             json.dump(results, outfile)
 
-    elif file_type == ".h5":
+    elif file_type == "h5":
         # results file written to hdf5 in mem
         tmp_file_path = results.filename
         results.close()

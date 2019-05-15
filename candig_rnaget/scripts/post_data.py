@@ -42,8 +42,6 @@ def add_expression_file(args=None):
         headers=headers
     )
 
-    print(get_study.status_code)
-
     if get_study.status_code == 200:
         expression_obj = {}
         if args.tags:
@@ -63,7 +61,7 @@ def add_expression_file(args=None):
         raise AuthorizationError
     else:
         raise Exception(
-            "{} error running GET on project ID".format(get_study.status_code)
+            "{} error running GET on study ID".format(get_study.status_code)
         )
 
     post_file = requests.post(
@@ -71,8 +69,6 @@ def add_expression_file(args=None):
         data=json.dumps(expression_obj),
         headers=headers
     )
-
-    print(post_file.status_code)
 
     if post_file.status_code == 201:
         print({
@@ -84,7 +80,9 @@ def add_expression_file(args=None):
         raise AuthorizationError
 
     else:
-        print("Something went wrong")
+        raise Exception(
+            "{} error while making POST request".format(post_file.status_code)
+        )
 
 
 if __name__ == "__main__":

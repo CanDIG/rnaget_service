@@ -78,6 +78,8 @@ paths:
           description: Internal error - project not created
           schema:
             $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /projects/search:
     get:
       tags:
@@ -352,6 +354,31 @@ paths:
           description: Internal error - expression not created
           schema:
             $ref: '#/definitions/Error'
+    get:
+      tags:
+      - expressions
+      summary: Search for expressions matching filters
+      description: Search for expressions matching filters
+      operationId: candig_rnaget.api.operations.get_search_expressions
+      produces:
+      - application/xml
+      - application/json
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/expression'
+        "400":
+          description: Error
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /expressions/search:
     get:
       tags:

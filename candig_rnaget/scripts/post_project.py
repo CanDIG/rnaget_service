@@ -17,8 +17,6 @@ def add_project(args=None):
 
     parser = argparse.ArgumentParser('Create an RNAGET project record')
 
-    parser.add_argument('--url', default='http://ga4ghdev01.bcgsc.ca:8008/rnaget')
-
     # required arguments
     parser.add_argument('--url', required=True)  # e.g. https://candig.bcgsc.ca/rnaget
     parser.add_argument('--token', required=True)

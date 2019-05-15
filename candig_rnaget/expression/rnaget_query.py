@@ -8,7 +8,7 @@ import pandas as pd
 from collections import OrderedDict
 
 app = flask.current_app
-SUPPORTED_OUTPUT_FORMATS = [".json",".h5"]  # ".loom"]
+SUPPORTED_OUTPUT_FORMATS = ["json","h5"]  # "loom"]
 
 
 class ExpressionQueryTool(object):
@@ -24,14 +24,14 @@ class ExpressionQueryTool(object):
             - [(feature1, threshold1), (feature2, theshold2)...]
     """
 
-    def __init__(self, input_file, output_file=None, include_metadata=False, output_type=".h5", feature_map=None):
+    def __init__(self, input_file, output_file=None, include_metadata=False, output_type="h5", feature_map=None):
         """
 
         :param input_file: path to HDF5 file being queried
         :param output_file: path where output file should be generated (for non JSON output types)
         :param include_metadata: (bool) include expression file metadata in results
-        :param output_type: .json | .h5 (.loom in progress)
-        :param feature_map: .tsv file containing mapping for gene_id<->gene_name<->accessions
+        :param output_type: json | h5 (loom in progress)
+        :param feature_map: tsv file containing mapping for gene_id<->gene_name<->accessions
         """
         self._file = h5py.File(input_file, 'r')
         self._output_file = output_file
@@ -98,11 +98,11 @@ class ExpressionQueryTool(object):
             sample_expressions = expression[sample_index,...]
             feature_load = self.get_features()[...]
 
-            if self._output_format == ".json":
+            if self._output_format == "json":
                 results["features"] = list(map(bytes.decode, feature_load))
                 results["expression"][sample_id] = list(sample_expressions)
 
-            elif self._output_format == ".h5":
+            elif self._output_format == "h5":
                 encoded_samples = [sample_id.encode('utf8')]
 
                 results = self._write_hdf5_results(
@@ -114,10 +114,10 @@ class ExpressionQueryTool(object):
                 counts = self.get_raw_counts()
                 sample_counts = counts[sample_index,...]
 
-                if self._output_format == ".json":
+                if self._output_format == "json":
                     results["metadata"]["raw_counts"][sample_id] = list(sample_counts)
 
-                elif self._output_format == ".h5":
+                elif self._output_format == "h5":
                     results = self._write_hdf5_metadata(
                         results, 1, len(feature_load), counts=sample_counts)
 
@@ -154,7 +154,7 @@ class ExpressionQueryTool(object):
                 def ft_compare(x,y):
                     return x <= y
 
-            if self._output_format == ".json":
+            if self._output_format == "json":
                 results["features"] = list(feature_list)
 
             # read slices in to memory as a data frame
@@ -172,13 +172,13 @@ class ExpressionQueryTool(object):
             samples_list = [samples[idx].decode() for idx in expression_df.index]
 
         else:
-            if self._output_format == ".json":
+            if self._output_format == "json":
                 results["features"] = list(indices.keys())
 
             feature_expressions = list(expression[:, feature_slices])
             samples_list = list(map(bytes.decode, self.get_samples()))
 
-        if self._output_format == ".json":
+        if self._output_format == "json":
             if feature_expressions:
                 feature_zip = zip(*feature_expressions)
                 results["expression"] = dict(zip(samples_list, (map(list, feature_zip))))
@@ -190,7 +190,7 @@ class ExpressionQueryTool(object):
                 counts_zip = zip(*feature_counts)
                 results["metadata"]["raw_counts"] = dict(zip(samples_list, (map(list,counts_zip))))
 
-        elif self._output_format == ".h5":
+        elif self._output_format == "h5":
             encoded_samples = [sample.encode('utf-8') for sample in samples_list]
             encoded_features = [feature.encode('utf-8') for feature in indices]
 
@@ -262,13 +262,13 @@ class ExpressionQueryTool(object):
                     counts = self.get_raw_counts()
                     feature_counts = list(counts[sample_index, feature_slices])
 
-                if self._output_format == ".json":
+                if self._output_format == "json":
                     results["features"] = list(feature_indices.keys())
                     results["expression"][sample_id] = feature_expressions
                     if self._include_metadata:
                         results["metadata"]["raw_counts"][sample_id] = feature_counts
 
-                elif self._output_format == ".h5":
+                elif self._output_format == "h5":
                     encoded_samples = [sample_id.encode('utf8')]
                     encoded_features = [feature.encode('utf-8') for feature in feature_indices]
 
@@ -384,7 +384,7 @@ class ExpressionQueryTool(object):
         """
         Construct a results object template from the expression dataset
         """
-        if self._output_format == '.json':
+        if self._output_format == 'json':
             results = {
                 "expression": {},
                 "features": []
@@ -397,7 +397,7 @@ class ExpressionQueryTool(object):
                     "raw_counts": {}
                 }
 
-        elif self._output_format == '.h5':
+        elif self._output_format == 'h5':
             file_path = self._output_file
             results = h5py.File(file_path, 'w', driver='core')
         else:

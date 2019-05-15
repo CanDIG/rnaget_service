@@ -366,11 +366,11 @@ class TSVMatrixLoader(object):
         self._units = units
         self._source_file_type = '.tsv'
 
-    def build_hdf5(self):
+    def build_hdf5(self, samples_header_idx=1):
         with open(self._input_tsv, "r") as q_file:
             quantificationReader = csv.reader(q_file, delimiter="\t")
             # depends on tsv header?
-            samples_start_index = 1
+            samples_start_index = samples_header_idx
 
             samples_list = next(quantificationReader)[samples_start_index:]
             features_list = []
@@ -386,7 +386,13 @@ class TSVMatrixLoader(object):
             for feature_quant in quantificationReader:
                 # Keep ensembl gene version?
                 features_list.append(feature_quant[0].split(".")[0].encode('utf8'))
-                expression_list.append(tuple(map(float, feature_quant[samples_start_index:])))
+                f_float = []
+                for val in feature_quant[samples_start_index:]:
+                    try:
+                        f_float.append(float(val))
+                    except ValueError:
+                        f_float.append(float(0))
+                expression_list.append(tuple(f_float))
 
             features = self._file.create_dataset(
                 self.features_id, (len(features_list),), maxshape=(len(features_list),),
