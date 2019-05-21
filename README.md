@@ -39,7 +39,7 @@ Once running, a Swagger UI can be accessed at: `/rnaget/ui`
 To specify your own database & log output, the server can be started with:
 
 ```
-rnaget_service --host=0.0.0.0 --port=3005 --database=data/test.db --logfile=/path/to/logs --loglevel=WARN
+candig_rnaget --host=0.0.0.0 --port=3005 --database=data/test.db --logfile=/path/to/logs --loglevel=WARN
 ```
 
 For testing, the dredd config is currently set up to launch the service itself, so no server needs be running:
