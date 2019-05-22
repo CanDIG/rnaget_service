@@ -424,28 +424,9 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :param file_type: output file type (not a part of schema yet)
     :return: expression matrices matching filters
     """
-    db_session = orm.get_session()
-    expression = orm.models.File
-    tmp_dir = app.config.get('TMP_DIRECTORY')
 
     try:
-        # TODO: find better way to filter for expression data?
-        expressions = db_session.query(expression)
-        expressions = expressions.filter(expression.fileType == "h5")
-
-        # db queries
-        if version:
-            expressions = expressions.filter(expression.version.like('%' + version + '%'))
-        if tags:
-            # return any project that matches at least one tag
-            expressions = expressions.filter(or_(*[expression.tags.contains(tag) for tag in tags]))
-        if studyID:
-            validate_uuid_string('studyID', studyID)
-            expressions = expressions.filter(expression.studyID == studyID)
-        if projectID:
-            validate_uuid_string('projectID', projectID)
-            study_list = get_study_by_project(projectID)
-            expressions = expressions.filter(expression.studyID.in_(study_list))
+        expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, featureAccessionList, maxExpression, minExpression]):
             pass
@@ -456,38 +437,12 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             responses = []
             try:
                 for expr in expressions:
-                    output_file_id = uuid.uuid1()
-                    output_filepath = tmp_dir+str(output_file_id)+'.'+file_type
-                    feature_map = pkg_resources.resource_filename('candig_rnaget',
-                                                                  'expression/feature_mapping_HGNC.tsv')
-                    try:
-                        h5query = ExpressionQueryTool(
-                            expr.__filepath__,
-                            output_filepath,
-                            include_metadata=False,
-                            output_type=file_type,
-                            feature_map=feature_map
-                        )
-                    except OSError as err:
-                        logger().warning(struct_log(action=str(err)))
-                        continue
-
-                    if sampleID or featureIDList or featureNameList or featureAccessionList:
-                        q = h5query.search(
-                            sample_id=sampleID,
-                            feature_list_id=featureIDList,
-                            feature_list_name=featureNameList,
-                            feature_list_accession=featureAccessionList
-                        )
-                    elif minExpression:
-                        threshold_array = convert_threshold_array(minExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=featureThresholdLabel)
-                    else:
-                        threshold_array = convert_threshold_array(maxExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=featureThresholdLabel)
-
-                    h5query.close()
-                    responses.append(generate_file_response(q, file_type, output_file_id, expr.studyID))
+                    file_response = slice_expression_data(
+                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        file_type, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                    )
+                    if file_response:
+                        responses.append(file_response)
 
             except ThresholdValueError as e:
                 err = Error(
@@ -508,6 +463,141 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         return err, 500
 
     return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+
+
+@apilog
+def post_search_expressions(expression_search):
+
+    # Parse search object
+    version = expression_search.get("version")
+    tags = expression_search.get("tags")
+    studyID = expression_search.get("studyID")
+    projectID = expression_search.get("projectID")
+    sampleID = expression_search.get("sampleID")
+    featureIDList = expression_search.get("featureIDList")
+    featureNameList = expression_search.get("featureNameList")
+    maxExpression = expression_search.get("maxExpression")
+    minExpression = expression_search.get("minExpression")
+
+    # If not supplied, set defaults
+    featureThresholdLabel = expression_search.get("featureThresholdLabel", "name")
+    file_type = expression_search.get("fileType", "h5")
+
+    try:
+        expressions = filter_expression_data(version, tags, studyID, projectID)
+
+        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+            pass
+
+        else:
+            # H5 queries
+            responses = []
+            try:
+                for expr in expressions:
+                    file_response = slice_expression_data(
+                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        file_type, threshold_label=featureThresholdLabel, threshold_input_type='object'
+                    )
+                    if file_response:
+                        responses.append(file_response)
+
+            except ThresholdValueError as e:
+                err = Error(
+                    message=str(e),
+                    code=400)
+                return err, 400
+
+            return responses, 200
+
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
+    except orm.ORMException as e:
+        err = _report_search_failed('expression', e)
+        return err, 500
+
+    return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+
+
+def filter_expression_data(version, tags, study_id, project_id):
+    """
+    Performs the database queries to filter expression data before h5 queries
+    :param version:
+    :param tags:
+    :param study_id:
+    :param project_id:
+    :return: Filtered list of db row objects
+    """
+    db_session = orm.get_session()
+    expression = orm.models.File
+
+    # TODO: find better way to filter for expression data?
+    expressions = db_session.query(expression).filter(expression.fileType == "h5")
+
+    # db queries
+    if version:
+        expressions = expressions.filter(expression.version.like('%' + version + '%'))
+    if tags:
+        # return any project that matches at least one tag
+        expressions = expressions.filter(or_(*[expression.tags.contains(tag) for tag in tags]))
+    if study_id:
+        validate_uuid_string('studyID', study_id)
+        expressions = expressions.filter(expression.studyID == study_id)
+    if project_id:
+        validate_uuid_string('projectID', project_id)
+        study_list = get_study_by_project(project_id)
+        expressions = expressions.filter(expression.studyID.in_(study_list))
+
+    return expressions
+
+
+def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
+                          threshold_label='name', threshold_input_type='array'):
+    tmp_dir = app.config.get('TMP_DIRECTORY')
+
+    output_file_id = uuid.uuid1()
+    output_filepath = tmp_dir + str(output_file_id) + '.' + file_type
+    feature_map = pkg_resources.resource_filename('candig_rnaget',
+                                                  'expression/feature_mapping_HGNC.tsv')
+
+    try:
+        h5query = ExpressionQueryTool(
+            expr.__filepath__,
+            output_filepath,
+            include_metadata=False,
+            output_type=file_type,
+            feature_map=feature_map
+        )
+
+        if sampleID or featureIDList or featureNameList:
+            q = h5query.search(
+                sample_id=sampleID,
+                feature_list_id=featureIDList,
+                feature_list_name=featureNameList
+            )
+        elif minExpression:
+            threshold_array = convert_threshold_array(minExpression, input_format=threshold_input_type)
+            q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=threshold_label)
+        else:
+            threshold_array = convert_threshold_array(maxExpression, input_format=threshold_input_type)
+            q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=threshold_label)
+
+        h5query.close()
+
+    # HDF5 file error
+    except OSError as err:
+        logger().warning(struct_log(action=str(err)))
+        return None
+
+    # Given feature list or sample ID does not contain any valid entries
+    except LookupError as err:
+        logger().warning(struct_log(action=str(err)))
+        return None
+
+    return generate_file_response(q, file_type, output_file_id, expr.studyID)
 
 
 @apilog
@@ -801,16 +891,23 @@ def download_file(token, temp_file=False):
         return err, 404
 
 
-def convert_threshold_array(threshold_input):
+def convert_threshold_array(threshold_input, input_format='array'):
     """
     query parameter threshold array formatted: Feature,Value,Feature,Value
     :param threshold_input: query parameter threshold array
+    :param input_format: one of 'array' or 'object'
     :return: list of feature/threshold tuples or raise error
     """
     threshold_output = []
     try:
-        for i in range(int(len(threshold_input)/2)):
-            threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
+        if input_format == 'array':
+            for i in range(int(len(threshold_input)/2)):
+                threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
+        elif input_format == 'object':
+            for k,v in threshold_input.items():
+                threshold_output.append((k, float(v)))
+        else:
+            raise ValueError("input_format must be: 'array' or 'object'")
     except ValueError as err:
         raise ThresholdValueError from err
     else:

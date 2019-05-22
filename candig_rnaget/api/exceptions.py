@@ -9,8 +9,7 @@ class ThresholdValueError(ValueError):
     """
     Custom exception for threshold arrays when passed in as query parameters
     """
-    def __init__(self):
-        message = "Threshold array must be formatted: feature_1,threshold_1,...,feature_n,threshold_n"
+    def __init__(self, message):
         super().__init__(message)
 
 

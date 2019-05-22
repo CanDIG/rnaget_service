@@ -164,10 +164,14 @@ class ExpressionQueryTool(object):
             expression_df = pd.DataFrame(expression[:,feature_slices])
 
             # slice data frame while samples remain
+            index_keys = list(indices.keys())
             for feature_id, threshold in ft_list:
                 if len(expression_df) > 0:
-                    df_feature_index = list(indices.keys()).index(feature_id)
-                    expression_df = expression_df[ft_compare(expression_df[df_feature_index],threshold)]
+                    try:
+                        df_feature_index = index_keys.index(feature_id)
+                        expression_df = expression_df[ft_compare(expression_df[df_feature_index],threshold)]
+                    except ValueError:
+                        continue
                 else:
                     break
 

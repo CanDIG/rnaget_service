@@ -359,7 +359,7 @@ paths:
       - expressions
       summary: Search for expressions matching filters
       description: Search for expressions matching filters
-      operationId: candig_rnaget.api.operations.get_search_expressions
+      operationId: candig_rnaget.api.operations.get_expressions
       produces:
       - application/xml
       - application/json
@@ -369,7 +369,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/expression'
+              $ref: '#/definitions/file'
         "400":
           description: Error
         "403":
@@ -465,7 +465,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/expression'
+              $ref: '#/definitions/file'
         "400":
           description: Error
         "403":
@@ -474,6 +474,36 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
+    post:
+      tags:
+      - expressions
+      summary: Post search for expressions matching filters
+      description: Post search for expressions matching filters
+      operationId: candig_rnaget.api.operations.post_search_expressions
+      produces:
+      - application/xml
+      - application/json
+      parameters:
+        - name: expression_search
+          in: body
+          schema:
+            $ref: '#/definitions/expressionsearch'
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/file'
+        "400":
+          description: Error
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /expressions/search/filters:
     get:
       tags:
@@ -852,6 +882,43 @@ definitions:
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: expression
+  expressionsearch:
+    type: object
+    description: Expression search query object
+    properties:
+      version:
+        type: string
+      tags:
+        type: array
+        items:
+          type: string
+      sampleID:
+        type: string
+      projectID:
+        type: string
+        format: uuid
+      studyID:
+        type: string
+        format: uuid
+      featureIDList:
+        type: array
+        items:
+          type: string
+      featureNameList:
+        type: array
+        items:
+          type: string
+      minExpression:
+        type: object
+      maxExpression:
+        type: object
+      featureThresholdLabel:
+        type: string
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+    xml:
+      name: expressionsearch
   searchFilter:
     type: object
     description: parameter name to use for filter when searching
