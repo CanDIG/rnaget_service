@@ -21,6 +21,7 @@ class ExpressionQueryTool(object):
             - feature id
         - expression threshold array:
             - either minThreshold or maxThreshold
+            - feature type given by featureThresholdLabel: id or name
             - [(feature1, threshold1), (feature2, theshold2)...]
     """
 
@@ -86,6 +87,8 @@ class ExpressionQueryTool(object):
             if len(lookup) > 0:
                 indices[encoded_id.decode()] = lookup[0]
         sorted_indices = sorted(indices.items(), key=lambda i: i[1])
+        if not sorted_indices:
+            raise LookupError("Indices for {} could not be generated".format(axis))
         return OrderedDict([(k,v) for (k,v) in sorted_indices])
 
     def _search_sample(self, sample_id):
@@ -221,7 +224,7 @@ class ExpressionQueryTool(object):
 
         if feature_list_accession or feature_list_name:
             if feature_list_id or (feature_list_accession and feature_list_name):
-                raise ValueError("Invalid argument values provided")
+                raise LookupError("Can't lookup invalid combination of features")
             df = pd.read_csv(self._feature_map, sep='\t')
             feature_list_id = []
 
@@ -289,7 +292,7 @@ class ExpressionQueryTool(object):
             return self._search_features(feature_list_id, supplementary_feature_label=supplementary_feature_label)
 
         else:
-            raise ValueError("Invalid argument values provided")
+            raise LookupError("No valid features or samples provided")
 
     def search_threshold(self, ft_list, ft_type="min", feature_label="name"):
         feature_list = list(zip(*ft_list))[0]
