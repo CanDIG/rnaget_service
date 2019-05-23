@@ -96,7 +96,7 @@ class File(Base):
     tags = Column(JsonArray())
     fileType = Column(String(10))
     studyID = Column(GUID(), ForeignKey('studies.id'))
-    URL = Column(String(100))
+    URL = Column(String(100), unique=True)
     created = Column(DateTime())
     __table_args__ = ()
 

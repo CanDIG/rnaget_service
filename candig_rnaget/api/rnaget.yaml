@@ -456,7 +456,12 @@ paths:
       - name: featureThresholdLabel
         in: query
         description: one of `id` or `name` or `accession` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
-        x-example: name
+        required: false
+        type: string
+      - name: output
+        in: query
+        description: output file formats supported `h5` or `json`
+        x-example: h5
         required: false
         type: string
       responses:
@@ -567,18 +572,18 @@ paths:
           description: Expression not found
       security:
       - api_key: []
-  /expressions/download/{token}:
+  /expressions/download/{file}:
     get:
       tags:
-      - download hdf5
-      summary: Download the file as HDF5
+      - download expression
+      summary: Download the file
       description: Returns download URL for file
       operationId: candig_rnaget.api.operations.expression_download
       parameters:
-      - name: token
+      - name: file
         in: path
-        description: temp file token
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
+        description: permanent file name
+        x-example: example_quantfile.h5
         required: true
         type: string
       responses:

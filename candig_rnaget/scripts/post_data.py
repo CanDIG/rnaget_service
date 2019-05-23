@@ -48,11 +48,11 @@ def add_expression_file(args=None):
             expression_obj['tags'] = args.tags.split(',')
 
         expression_obj['studyID'] = args.studyID
-        expression_obj['fileType'] = ".h5"
+        expression_obj['fileType'] = "h5"
 
         if not os.path.exists(args.file):
             raise FileNotFoundError
-        elif not args.file.endswith(".h5"):
+        elif not args.file.endswith("h5"):
             raise TypeError("Expression file must be .h5")
         else:
             expression_obj['__filepath__'] = args.file

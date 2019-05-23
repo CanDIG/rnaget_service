@@ -41,6 +41,7 @@ class ExpressionQueryTool(object):
         self._features = "axis/features"
         self._samples = "axis/samples"
         self._counts = "metadata/counts"
+        # TODO: metadata inclusion needs testing
         self._include_metadata = include_metadata
 
         if output_type not in SUPPORTED_OUTPUT_FORMATS:
@@ -158,7 +159,10 @@ class ExpressionQueryTool(object):
                     return x <= y
 
             if self._output_format == "json":
-                results["features"] = list(feature_list)
+                if supplementary_feature_array:
+                    results["features"] = list(map(bytes.decode, supplementary_feature_array))
+                else:
+                    results["features"] = list(feature_list)
 
             # read slices in to memory as a data frame
             expression_df = pd.DataFrame(expression[:,feature_slices])
@@ -180,17 +184,19 @@ class ExpressionQueryTool(object):
 
         else:
             if self._output_format == "json":
-                results["features"] = list(indices.keys())
+                if supplementary_feature_array:
+                    results["features"] = list(map(bytes.decode, supplementary_feature_array))
+                else:
+                    results["features"] = list(indices.keys())
 
             feature_expressions = list(expression[:, feature_slices])
             samples_list = list(map(bytes.decode, self.get_samples()))
 
         if self._output_format == "json":
             if feature_expressions:
-                feature_zip = zip(*feature_expressions)
-                results["expression"] = dict(zip(samples_list, (map(list, feature_zip))))
+                results["expression"] = dict(zip(samples_list, (map(list, feature_expressions))))
             else:
-                results["expression"] = dict(zip(samples_list, sample_expressions))
+                results["expression"] = dict(zip(samples_list, (map(list, sample_expressions))))
 
             if self._include_metadata:
                 feature_counts = list(counts[:, feature_slices])
@@ -270,7 +276,10 @@ class ExpressionQueryTool(object):
                     feature_counts = list(counts[sample_index, feature_slices])
 
                 if self._output_format == "json":
-                    results["features"] = list(feature_indices.keys())
+                    if supplementary_feature_array:
+                        results["features"] = list(map(bytes.decode, supplementary_feature_array))
+                    else:
+                        results["features"] = list(feature_indices.keys())
                     results["expression"][sample_id] = feature_expressions
                     if self._include_metadata:
                         results["metadata"]["raw_counts"][sample_id] = feature_counts
@@ -394,7 +403,9 @@ class ExpressionQueryTool(object):
         if self._output_format == 'json':
             results = {
                 "expression": {},
-                "features": []
+                "features": [],
+                "units": expression_matrix.attrs.get("units"),
+                "study": expression_matrix.attrs.get("study")
             }
 
             if self._include_metadata:

@@ -47,10 +47,9 @@ def _report_object_exists(typename, **kwargs):
     :param **kwargs: arbitrary keyword parameters
     :return: Connexion Error() type to return
     """
-    report = typename + ': Attempt to modify with a POST'
-    message = 'Attempt to modify '+typename+' with a POST'
+    report = typename + 'already exists'
     logger().warning(struct_log(action=report, **kwargs))
-    return Error(message=message, code=405)
+    return Error(message=report, code=405)
 
 
 def _report_conversion_error(typename, exception, **kwargs):
@@ -365,6 +364,15 @@ def get_expression_by_id(expressionId):
 def post_expression(expression_record):
     db_session = orm.get_session()
 
+    if expression_record.get('__filepath__'):
+        file_path = expression_record['__filepath__']
+        if not os.path.isfile(file_path):
+            err = Error(message="Invalid file path: " + file_path, code=400)
+            return err, 400
+    else:
+        err = Error(message="An absolute __filepath__ is required", code=400)
+        return err, 400
+
     if not expression_record.get('id'):
         iid = uuid.uuid1()
         expression_record['id'] = iid
@@ -376,13 +384,9 @@ def post_expression(expression_record):
 
     if not expression_record.get('URL'):
         base_url = app.config.get('BASE_DL_URL') + BasePath
-        expression_record['URL'] = base_url + '/expressions/download/' + str(iid)
+        expression_record['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
 
     expression_record['created'] = datetime.datetime.utcnow()
-
-    # if expression_record['fileType'] != 'h5':
-    #     err = Error(message="Expression matrix must be fileType 'h5'", code=400)
-    #     return err, 400
 
     try:
         orm_expression = orm.models.File(**expression_record)
@@ -394,7 +398,7 @@ def post_expression(expression_record):
         db_session.add(orm_expression)
         db_session.commit()
     except exc.IntegrityError:
-        err = _report_object_exists('expression: ' + expression_record['id'], **expression_record)
+        err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('expression', e, **expression_record)
@@ -408,9 +412,9 @@ def post_expression(expression_record):
 
 @apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
-                      version=None, featureIDList=None, featureNameList=None,
-                      featureAccessionList=None, minExpression=None, maxExpression=None,
-                      featureThresholdLabel="name", file_type="h5"):
+                           version=None, featureIDList=None, featureNameList=None,
+                           featureAccessionList=None, minExpression=None, maxExpression=None,
+                           featureThresholdLabel="name", output="json"):
     """
 
     :param tags: optional Comma separated tag list
@@ -421,7 +425,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :param featureIDList: optional filter by listed feature IDs
     :param featureNameList: optional filter by listed features
     :param featureAccessionList: optional filter bys by listed accession numbers
-    :param file_type: output file type (not a part of schema yet)
+    :param output: output file type (not a part of schema yet)
     :return: expression matrices matching filters
     """
 
@@ -439,7 +443,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                 for expr in expressions:
                     file_response = slice_expression_data(
                         expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
-                        file_type, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                        output, threshold_label=featureThresholdLabel, threshold_input_type='array'
                     )
                     if file_response:
                         responses.append(file_response)
@@ -481,7 +485,7 @@ def post_search_expressions(expression_search):
 
     # If not supplied, set defaults
     featureThresholdLabel = expression_search.get("featureThresholdLabel", "name")
-    file_type = expression_search.get("fileType", "h5")
+    file_type = expression_search.get("output", "h5")
 
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
@@ -524,12 +528,7 @@ def post_search_expressions(expression_search):
 
 def filter_expression_data(version, tags, study_id, project_id):
     """
-    Performs the database queries to filter expression data before h5 queries
-    :param version:
-    :param tags:
-    :param study_id:
-    :param project_id:
-    :return: Filtered list of db row objects
+    Performs the database queries to filter expression files
     """
     db_session = orm.get_session()
     expression = orm.models.File
@@ -556,6 +555,11 @@ def filter_expression_data(version, tags, study_id, project_id):
 
 def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
                           threshold_label='name', threshold_input_type='array'):
+    """
+    Performs the slicing on each expression file
+    :param threshold_input_type:
+    :return: temporary file response object
+    """
     tmp_dir = app.config.get('TMP_DIRECTORY')
 
     output_file_id = uuid.uuid1()
@@ -802,13 +806,13 @@ def tmp_download(token):
 
 
 @apilog
-def expression_download(token):
+def expression_download(file):
     """
 
-    :param token: for now using the file identifier
+    :param file: expression file name
     :return: file attachment type application/octet-stream
     """
-    return download_file(token)
+    return download_file(file)
 
 
 def generate_file_response(results, file_type, file_id, study_id):
@@ -819,7 +823,7 @@ def generate_file_response(results, file_type, file_id, study_id):
         os.makedirs(tmp_dir)
 
     if file_type == "json":
-        tmp_file_path = os.path.join(tmp_dir, str(file_id)+'.'+file_type)
+        tmp_file_path = os.path.join(tmp_dir, str(file_id)+'.json')
         with open(tmp_file_path, 'w') as outfile:
             json.dump(results, outfile)
 
@@ -877,7 +881,12 @@ def download_file(token, temp_file=False):
             file_path = access_file.__filepath__
 
             if os.path.isfile(file_path):
-                response = flask.send_file(file_path, as_attachment=True)
+                if access_file.fileType == "json":
+                    with open(file_path, 'r') as json_file:
+                        data = json.load(json_file)
+                    response = flask.make_response(json.dumps(data))
+                else:
+                    response = flask.send_file(file_path, as_attachment=True)
             else:
                 err = Error(message="File not found (link may have expired)", code=404)
                 return err, 404
@@ -914,7 +923,7 @@ def convert_threshold_array(threshold_input, input_format='array'):
         return threshold_output
 
 
-def get_expression_file_path(expressionId):
+def get_expression_file_path(file):
     """
 
     :param expressionId: required identifier
@@ -922,23 +931,18 @@ def get_expression_file_path(expressionId):
     """
     db_session = orm.get_session()
     expression = orm.models.File
+    base_url = app.config.get('BASE_DL_URL') + BasePath
+    file_url = base_url + '/expressions/download/' + file
 
     try:
-        validate_uuid_string('id', expressionId)
-        expr_matrix = db_session.query(expression).get(expressionId)
-
-    except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        expr_matrix = db_session.query(expression).filter(expression.URL == file_url).one()
 
     except orm.ORMException as e:
-        err = _report_search_failed('file', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, URL=file_url)
         return err, 500
 
     if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + expressionId, code=404)
+        err = Error(message="Expression matrix not found: " + file, code=404)
         return err, 404
 
     return expr_matrix.__filepath__
