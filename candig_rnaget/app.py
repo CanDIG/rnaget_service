@@ -25,7 +25,7 @@ def main(args=None):
         args = sys.argv[1:]
 
     parser = argparse.ArgumentParser('Run RNA Get service')
-    parser.add_argument('--host', required=True)
+    parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--database', default='./data/rnaget.db')
     parser.add_argument('--port', default=3000)
     parser.add_argument('--logfile', default="./log/rnaget.log")

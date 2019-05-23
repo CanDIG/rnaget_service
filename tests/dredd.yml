@@ -2,14 +2,14 @@ dry-run: null
 hookfiles: null
 language: python
 sandbox: false
-server: python3 -m candig_rnaget --database=test.db --logfile=test.log --loglevel=INFO --port=8045
+server: candig_rnaget --database=test.db --logfile=test.log --loglevel=INFO --port=8045
 server-wait: 30
 init: false
 custom: {}
 names: false
 only: []
 output: []
-header: []
+header: ["api_key: test"]
 sorted: false
 user: null
 inline-errors: false

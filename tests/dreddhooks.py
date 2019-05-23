@@ -6,13 +6,11 @@ VERSION = "0.9.0"
 RO_FIELDS = ["created", "id"]
 response_stash = {}
 
+
 @hooks.before_each
 def redact_readonly_fields(transaction):
     """Do not POST readonly (computed) fields"""
-    # no action necessary if not a POST, skip demo endpoints
-    if transaction['name'].startswith("demo"):
-        transaction['skip'] = True
-    elif transaction['request']['method'] == "POST":
+    if transaction['request']['method'] == "POST":
         # otherwise, remove such fields from the request body
         request_body = json.loads(transaction['request']['body'])
         for ro_field in RO_FIELDS:
@@ -24,7 +22,7 @@ def redact_readonly_fields(transaction):
 @hooks.before("expressions > /rnaget/expressions > Create an expression database entry and map to quant file > 201 > application/json")
 def set_expression_filetype(transaction):
     request_body = json.loads(transaction['request']['body'])
-    request_body['fileType'] = ".h5"
+    request_body['fileType'] = "h5"
     transaction['request']['body'] = json.dumps(request_body)
 
 
@@ -49,7 +47,7 @@ def save_studies_response(transaction):
     response_stash['study_ids'] = ids
 
 
-@hooks.after("expressions > /rnaget/expressions/search > Search for expressions matching filters > 200 > application/json")
+@hooks.after("expressions > /rnaget/expressions > Search for all expressions > 200 > application/json")
 def save_expressions_response(transaction):
     parsed_body = json.loads(transaction['real']['body'])
     ids = [item['id'] for item in parsed_body]
