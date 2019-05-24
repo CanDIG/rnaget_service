@@ -18,7 +18,7 @@ from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import Error, BasePath, Version
 from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
-from candig_rnaget.expression.rnaget_query import ExpressionQueryTool
+from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
 
 app = flask.current_app
 
@@ -448,7 +448,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                     if file_response:
                         responses.append(file_response)
 
-            except ThresholdValueError as e:
+            except (ThresholdValueError, UnsupportedOutputError) as e:
                 err = Error(
                     message=str(e),
                     code=400)
@@ -505,7 +505,7 @@ def post_search_expressions(expression_search):
                     if file_response:
                         responses.append(file_response)
 
-            except ThresholdValueError as e:
+            except (ThresholdValueError, UnsupportedOutputError) as e:
                 err = Error(
                     message=str(e),
                     code=400)

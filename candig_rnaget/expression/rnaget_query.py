@@ -11,6 +11,15 @@ app = flask.current_app
 SUPPORTED_OUTPUT_FORMATS = ["json","h5"]  # "loom"]
 
 
+class UnsupportedOutputError(ValueError):
+    """
+    Custom exception for passing unsupported file outputs
+    """
+    def __init__(self):
+        message = "Valid output formats are: {}".format(SUPPORTED_OUTPUT_FORMATS)
+        super().__init__(message)
+
+
 class ExpressionQueryTool(object):
     """
     Supports searching expression data from properly formatted HDF5 files
@@ -45,7 +54,7 @@ class ExpressionQueryTool(object):
         self._include_metadata = include_metadata
 
         if output_type not in SUPPORTED_OUTPUT_FORMATS:
-            raise ValueError("Valid output formats are: {}".format(SUPPORTED_OUTPUT_FORMATS))
+            raise UnsupportedOutputError()
         else:
             self._output_format = output_type
 
