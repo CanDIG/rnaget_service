@@ -9,7 +9,6 @@ import flask
 import os
 
 from candig_rnaget import orm
-from candig_rnaget.orm import models
 from candig_rnaget.api.models import BasePath, Version
 
 

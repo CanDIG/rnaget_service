@@ -1,7 +1,7 @@
 """
 SQLAlchemy models for the database
 """
-from sqlalchemy import Column, String, DateTime, Integer
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy import UniqueConstraint, ForeignKey
 from sqlalchemy import TypeDecorator
 from candig_rnaget.orm.guid import GUID
@@ -79,7 +79,7 @@ class ChangeLog(Base):
     SQLAlchemy class/table for listing changes to the database with version update
     """
     __tablename__ = 'changelogs'
-    version =  Column(String(10), primary_key=True)
+    version = Column(String(10), primary_key=True)
     log = Column(JsonArray())
     created = Column(DateTime())
     __table_args__ = ()
@@ -115,4 +115,3 @@ class TempFile(Base):
     URL = Column(String(100))
     created = Column(DateTime())
     __table_args__ = ()
-

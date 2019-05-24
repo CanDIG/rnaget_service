@@ -8,7 +8,7 @@ import pandas as pd
 from collections import OrderedDict
 
 app = flask.current_app
-SUPPORTED_OUTPUT_FORMATS = ["json","h5"]  # "loom"]
+SUPPORTED_OUTPUT_FORMATS = ["json", "h5"]  # "loom"]
 
 
 class UnsupportedOutputError(ValueError):
@@ -99,7 +99,7 @@ class ExpressionQueryTool(object):
         sorted_indices = sorted(indices.items(), key=lambda i: i[1])
         if not sorted_indices:
             raise LookupError("Indices for {} could not be generated".format(axis))
-        return OrderedDict([(k,v) for (k,v) in sorted_indices])
+        return OrderedDict([(k, v) for (k, v) in sorted_indices])
 
     def _search_sample(self, sample_id):
         expression = self.get_expression_matrix()
@@ -108,7 +108,7 @@ class ExpressionQueryTool(object):
         results = self._build_results_template(expression)
 
         if sample_index is not None:
-            sample_expressions = expression[sample_index,...]
+            sample_expressions = expression[sample_index, ...]
             feature_load = self.get_features()[...]
 
             if self._output_format == "json":
@@ -125,7 +125,7 @@ class ExpressionQueryTool(object):
 
             if self._include_metadata:
                 counts = self.get_raw_counts()
-                sample_counts = counts[sample_index,...]
+                sample_counts = counts[sample_index, ...]
 
                 if self._output_format == "json":
                     results["metadata"]["raw_counts"][sample_id] = list(sample_counts)
@@ -161,10 +161,10 @@ class ExpressionQueryTool(object):
 
         if ft_list and ft_type:
             if ft_type == "min":
-                def ft_compare(x,y):
+                def ft_compare(x, y):
                     return x > y
             else:
-                def ft_compare(x,y):
+                def ft_compare(x, y):
                     return x <= y
 
             if self._output_format == "json":
@@ -174,7 +174,7 @@ class ExpressionQueryTool(object):
                     results["features"] = list(feature_list)
 
             # read slices in to memory as a data frame
-            expression_df = pd.DataFrame(expression[:,feature_slices])
+            expression_df = pd.DataFrame(expression[:, feature_slices])
 
             # slice data frame while samples remain
             index_keys = list(indices.keys())
@@ -182,7 +182,7 @@ class ExpressionQueryTool(object):
                 if len(expression_df) > 0:
                     try:
                         df_feature_index = index_keys.index(feature_id)
-                        expression_df = expression_df[ft_compare(expression_df[df_feature_index],threshold)]
+                        expression_df = expression_df[ft_compare(expression_df[df_feature_index], threshold)]
                     except ValueError:
                         continue
                 else:
@@ -210,18 +210,18 @@ class ExpressionQueryTool(object):
             if self._include_metadata:
                 feature_counts = list(counts[:, feature_slices])
                 counts_zip = zip(*feature_counts)
-                results["metadata"]["raw_counts"] = dict(zip(samples_list, (map(list,counts_zip))))
+                results["metadata"]["raw_counts"] = dict(zip(samples_list, (map(list, counts_zip))))
 
         elif self._output_format == "h5":
             encoded_samples = [sample.encode('utf-8') for sample in samples_list]
             encoded_features = [feature.encode('utf-8') for feature in indices]
 
-            if len(feature_expressions)>0:
+            if len(feature_expressions) > 0:
                 results = self._write_hdf5_results(
                     results, encoded_samples, encoded_features, feature_expressions,
                     suppl_features_label=supplementary_feature_array)
 
-            elif len(sample_expressions)>0:
+            elif len(sample_expressions) > 0:
                 results = self._write_hdf5_results(
                     results, encoded_samples, encoded_features, sample_expressions,
                     suppl_features_label=supplementary_feature_array)
@@ -352,34 +352,34 @@ class ExpressionQueryTool(object):
 
     def _write_hdf5_results(self, results, sample_list, feature_list, expressions,
                             suppl_features_label=None, transpose=False):
-            features_ds = results.create_dataset(
-                self._features, (len(feature_list),1), maxshape=(len(feature_list),2), dtype="S20")
-            features_data = [feature_list]
+        features_ds = results.create_dataset(
+            self._features, (len(feature_list), 1), maxshape=(len(feature_list), 2), dtype="S20")
+        features_data = [feature_list]
 
-            if suppl_features_label:
-                features_ds.resize((len(feature_list),2))
-                features_data.append(suppl_features_label)
+        if suppl_features_label:
+            features_ds.resize((len(feature_list), 2))
+            features_data.append(suppl_features_label)
 
-            features_ds[...] = np.transpose(features_data)
+        features_ds[...] = np.transpose(features_data)
 
-            samples_ds = results.create_dataset(
-                self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S20")
-            samples_ds[...] = sample_list
+        samples_ds = results.create_dataset(
+            self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S20")
+        samples_ds[...] = sample_list
 
-            expression_ds = results.create_dataset(
-                self._expression_matrix, (len(sample_list), len(feature_list)),
-                maxshape=(len(sample_list),len(feature_list)), chunks=True, dtype="f8")
+        expression_ds = results.create_dataset(
+            self._expression_matrix, (len(sample_list), len(feature_list)),
+            maxshape=(len(sample_list), len(feature_list)), chunks=True, dtype="f8")
 
-            ref_ds = self.get_expression_matrix()
-            expression_ds.attrs["units"] = ref_ds.attrs.get("units")
-            expression_ds.attrs["study"] = ref_ds.attrs.get("study")
+        ref_ds = self.get_expression_matrix()
+        expression_ds.attrs["units"] = ref_ds.attrs.get("units")
+        expression_ds.attrs["study"] = ref_ds.attrs.get("study")
 
-            if transpose:
-                expression_ds[...] = np.transpose(expressions)
-            else:
-                expression_ds[...] = expressions
+        if transpose:
+            expression_ds[...] = np.transpose(expressions)
+        else:
+            expression_ds[...] = expressions
 
-            return results
+        return results
 
     def _write_hdf5_metadata(self, results, num_samples, num_features, counts=None):
         """
@@ -402,7 +402,7 @@ class ExpressionQueryTool(object):
         Splits a single column result into an array of arrays
         *** response formatting helper to keep possibility of multi-sample queries open
         """
-        col_split = np.array_split(col_array,len(col_array))
+        col_split = np.array_split(col_array, len(col_array))
         return list(map(list, col_split))
 
     def _build_results_template(self, expression_matrix):

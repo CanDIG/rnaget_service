@@ -13,7 +13,6 @@ import pkg_resources
 from sqlalchemy import or_
 from sqlalchemy import exc
 from candig_rnaget import orm
-from candig_rnaget.orm import models
 from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import Error, BasePath, Version
@@ -257,7 +256,7 @@ def post_study(study_record):
     try:
         db_session.add(orm_study)
         db_session.commit()
-    except exc.IntegrityError as e:
+    except exc.IntegrityError:
         err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
@@ -620,7 +619,7 @@ def search_expression_filters(filterType=None):
     :param filterType: optional one of `feature` or `sample`. If blank, both will be returned
     :return: filters for expression searches
     """
-    filter_file = pkg_resources.resource_filename('candig_rnaget','orm/filters_expression.json')
+    filter_file = pkg_resources.resource_filename('candig_rnaget', 'orm/filters_expression.json')
 
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
@@ -913,7 +912,7 @@ def convert_threshold_array(threshold_input, input_format='array'):
             for i in range(int(len(threshold_input)/2)):
                 threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
         elif input_format == 'object':
-            for k,v in threshold_input.items():
+            for k, v in threshold_input.items():
                 threshold_output.append((k, float(v)))
         else:
             raise ValueError("input_format must be: 'array' or 'object'")
