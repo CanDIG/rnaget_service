@@ -71,7 +71,7 @@ class AbstractExpressionLoader(object):
             if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
                     self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
-                    chunks=True, dtype="S20"
+                    chunks=True, dtype="S40"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
@@ -99,7 +99,7 @@ class AbstractExpressionLoader(object):
             if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
                     self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
-                    chunks=True, dtype="S20"
+                    chunks=True, dtype="S40"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
@@ -378,7 +378,7 @@ class TSVMatrixLoader(object):
 
             samples = self._file.create_dataset(
                 self.samples_id, (len(samples_list),), maxshape=(len(samples_list),),
-                chunks=True, dtype="S20"
+                chunks=True, dtype="S40"
             )
             samples.attrs["created"] = str(datetime.now())
             samples[...] = [sample.encode('utf8') for sample in samples_list]
