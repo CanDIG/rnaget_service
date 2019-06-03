@@ -23,6 +23,7 @@ def redact_readonly_fields(transaction):
 def set_expression_filetype(transaction):
     request_body = json.loads(transaction['request']['body'])
     request_body['fileType'] = "h5"
+    request_body['__filepath__'] = 'dredd.yml'
     transaction['request']['body'] = json.dumps(request_body)
 
 
@@ -98,6 +99,6 @@ def let_pass(transaction):
 
 # skipping file download endpoints
 @hooks.before("download temp file > /rnaget/download/{token} > Download the file as an available file type > 200 > application/json")
-@hooks.before("download hdf5 > /rnaget/expressions/download/{token} > Download the file as HDF5 > 200 > application/json")
+@hooks.before("download expression > /rnaget/expressions/download/{file} > Download the file > 200 > application/json")
 def skip_test(transaction):
     transaction['skip'] = True

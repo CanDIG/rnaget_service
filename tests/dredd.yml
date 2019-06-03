@@ -1,7 +1,6 @@
 dry-run: null
 hookfiles: null
 language: python
-sandbox: false
 server: candig_rnaget --database=test.db --logfile=test.log --loglevel=INFO --port=8045
 server-wait: 30
 init: false
@@ -16,9 +15,8 @@ inline-errors: false
 details: false
 method: []
 color: true
-loglevel: silent
+loglevel: error
 timestamp: false
-silent: false
 path: []
 hooks-worker-timeout: 5000
 hooks-worker-connect-timeout: 1500
