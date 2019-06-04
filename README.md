@@ -1,4 +1,5 @@
 # rnaget Microservice
+[![Build Status](https://travis-ci.org/CanDIG/rnaget_service.svg?branch=master)](https://travis-ci.org/CanDIG/rnaget_service)
 
 Based on CanDIG demo projects: [OpenAPI variant service demo](https://github.com/ljdursi/openapi_calls_example), [Python Model Service](https://github.com/CanDIG/python_model_service). This is a Proof-of-Concept implementation of the [GA4GH rnaget API](https://github.com/ga4gh-rnaseq/schema), used to query and download RNA quantification matrix data.
 
