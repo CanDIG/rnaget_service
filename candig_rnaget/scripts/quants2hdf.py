@@ -34,7 +34,7 @@ class AbstractExpressionLoader(object):
         try:
             self.__MODE__ = 'r+'
             self._file = h5py.File(hdf5file, self.__MODE__)
-        except OSError as e:
+        except OSError:
             print(">>> Creating new HDF5 store...")
             self.__MODE__ = 'w'
             self._file = h5py.File(hdf5file, self.__MODE__)
@@ -71,7 +71,7 @@ class AbstractExpressionLoader(object):
             if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
                     self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
-                    chunks=True, dtype="S20"
+                    chunks=True, dtype="S40"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
@@ -99,7 +99,7 @@ class AbstractExpressionLoader(object):
             if self.samples_id not in self._file:
                 samples = self._file.create_dataset(
                     self.samples_id, (0,), maxshape=(__MAX_SAMPLES__,),
-                    chunks=True, dtype="S20"
+                    chunks=True, dtype="S40"
                 )
                 samples.attrs["created"] = str(datetime.now())
 
@@ -159,7 +159,7 @@ class AbstractExpressionLoader(object):
                 else:
                     print(">>> Error: duplicate sample")
 
-            #else:
+            # else:
             #   raise Exception()
 
     def _ingest_features(self):
@@ -194,7 +194,7 @@ class AbstractExpressionLoader(object):
             self._file.flush()
 
     def build_hdf5(self):
-        raise NotImplementedError( "Should have implemented this" )
+        raise NotImplementedError("Should have implemented this")
 
     def get_file_list(self, datadir):
         """
@@ -243,7 +243,7 @@ class AbstractExpressionLoader(object):
         if header:
             try:
                 col_idx = header.index(name)
-            except:
+            except ValueError:
                 if col_idx is None:
                     raise KeyError("Missing {} column in expression table.".format(name))
         else:
@@ -252,7 +252,7 @@ class AbstractExpressionLoader(object):
 
     def _create_float_matrix(self, h5file, matrix_name):
         new_matrix = h5file.create_dataset(
-            matrix_name, (0,__MAX_FEATURES__),
+            matrix_name, (0, __MAX_FEATURES__),
             maxshape=(__MAX_SAMPLES__, __MAX_FEATURES__),
             chunks=True, dtype="f8"
         )
@@ -333,7 +333,7 @@ class GSCLoader(AbstractExpressionLoader):
         self._quantfilelist = self.get_file_list(datadir)
 
     def get_sample_id(self, quantfilename):
-        sample_id = quantfilename.split("_",1)[0]
+        sample_id = quantfilename.split("_", 1)[0]
         return str(sample_id).encode("utf8")
 
     def build_hdf5(self):
@@ -356,7 +356,7 @@ class TSVMatrixLoader(object):
         try:
             self.__MODE__ = 'r+'
             self._file = h5py.File(hdf5file, self.__MODE__)
-        except OSError as e:
+        except OSError:
             print(">>> Creating new HDF5 store...")
             self.__MODE__ = 'w'
             self._file = h5py.File(hdf5file, self.__MODE__)
@@ -366,11 +366,11 @@ class TSVMatrixLoader(object):
         self._units = units
         self._source_file_type = '.tsv'
 
-    def build_hdf5(self):
+    def build_hdf5(self, samples_header_idx=1):
         with open(self._input_tsv, "r") as q_file:
             quantificationReader = csv.reader(q_file, delimiter="\t")
             # depends on tsv header?
-            samples_start_index = 1
+            samples_start_index = samples_header_idx
 
             samples_list = next(quantificationReader)[samples_start_index:]
             features_list = []
@@ -378,7 +378,7 @@ class TSVMatrixLoader(object):
 
             samples = self._file.create_dataset(
                 self.samples_id, (len(samples_list),), maxshape=(len(samples_list),),
-                chunks=True, dtype="S20"
+                chunks=True, dtype="S40"
             )
             samples.attrs["created"] = str(datetime.now())
             samples[...] = [sample.encode('utf8') for sample in samples_list]
@@ -386,7 +386,13 @@ class TSVMatrixLoader(object):
             for feature_quant in quantificationReader:
                 # Keep ensembl gene version?
                 features_list.append(feature_quant[0].split(".")[0].encode('utf8'))
-                expression_list.append(tuple(map(float, feature_quant[samples_start_index:])))
+                f_float = []
+                for val in feature_quant[samples_start_index:]:
+                    try:
+                        f_float.append(float(val))
+                    except ValueError:
+                        f_float.append(float(0))
+                expression_list.append(tuple(f_float))
 
             features = self._file.create_dataset(
                 self.features_id, (len(features_list),), maxshape=(len(features_list),),
@@ -412,10 +418,10 @@ class TSVMatrixLoader(object):
 
 # some test cases
 if __name__ == "__main__":
-    __OUTPUT_FILE__ = "/home/alipski/CanDIG/mock_data/rna_exp/tsv_matrix.h5"
-    __DATA_DIR__ = "/home/alipski/Downloads/tophat_star_fpkm.v2_aliquot_gl.tsv"
+    __OUTPUT_FILE__ = ""
+    __DATA_DIR__ = ""
     # test_hdf5_expression = KallistoLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
-    #test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
-    #test_hdf5_expression.build_hdf5()
+    # test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
+    # test_hdf5_expression.build_hdf5()
     tsv_matrix = TSVMatrixLoader(__OUTPUT_FILE__, __DATA_DIR__, "fpkm", "test")
     tsv_matrix.build_hdf5()

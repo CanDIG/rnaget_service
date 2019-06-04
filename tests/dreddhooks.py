@@ -6,13 +6,11 @@ VERSION = "0.9.0"
 RO_FIELDS = ["created", "id"]
 response_stash = {}
 
+
 @hooks.before_each
 def redact_readonly_fields(transaction):
     """Do not POST readonly (computed) fields"""
-    # no action necessary if not a POST, skip demo endpoints
-    if transaction['name'].startswith("demo"):
-        transaction['skip'] = True
-    elif transaction['request']['method'] == "POST":
+    if transaction['request']['method'] == "POST":
         # otherwise, remove such fields from the request body
         request_body = json.loads(transaction['request']['body'])
         for ro_field in RO_FIELDS:
@@ -24,7 +22,8 @@ def redact_readonly_fields(transaction):
 @hooks.before("expressions > /rnaget/expressions > Create an expression database entry and map to quant file > 201 > application/json")
 def set_expression_filetype(transaction):
     request_body = json.loads(transaction['request']['body'])
-    request_body['fileType'] = ".h5"
+    request_body['fileType'] = "h5"
+    request_body['__filepath__'] = 'dredd.yml'
     transaction['request']['body'] = json.dumps(request_body)
 
 
@@ -49,7 +48,7 @@ def save_studies_response(transaction):
     response_stash['study_ids'] = ids
 
 
-@hooks.after("expressions > /rnaget/expressions/search > Search for expressions matching filters > 200 > application/json")
+@hooks.after("expressions > /rnaget/expressions > Search for all expressions > 200 > application/json")
 def save_expressions_response(transaction):
     parsed_body = json.loads(transaction['real']['body'])
     ids = [item['id'] for item in parsed_body]
@@ -100,6 +99,6 @@ def let_pass(transaction):
 
 # skipping file download endpoints
 @hooks.before("download temp file > /rnaget/download/{token} > Download the file as an available file type > 200 > application/json")
-@hooks.before("download hdf5 > /rnaget/expressions/download/{token} > Download the file as HDF5 > 200 > application/json")
+@hooks.before("download expression > /rnaget/expressions/download/{file} > Download the file > 200 > application/json")
 def skip_test(transaction):
     transaction['skip'] = True

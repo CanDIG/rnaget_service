@@ -30,4 +30,3 @@ def auth_key(api_key, required_scopes=None):
     # For now, any api_key to local app should work
     # TODO: refine auth methods
     return {}
-

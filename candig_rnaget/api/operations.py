@@ -13,12 +13,11 @@ import pkg_resources
 from sqlalchemy import or_
 from sqlalchemy import exc
 from candig_rnaget import orm
-from candig_rnaget.orm import models
 from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import Error, BasePath, Version
 from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
-from candig_rnaget.expression.rnaget_query import ExpressionQueryTool
+from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
 
 app = flask.current_app
 
@@ -47,10 +46,9 @@ def _report_object_exists(typename, **kwargs):
     :param **kwargs: arbitrary keyword parameters
     :return: Connexion Error() type to return
     """
-    report = typename + ': Attempt to modify with a POST'
-    message = 'Attempt to modify '+typename+' with a POST'
+    report = typename + 'already exists'
     logger().warning(struct_log(action=report, **kwargs))
-    return Error(message=message, code=405)
+    return Error(message=report, code=405)
 
 
 def _report_conversion_error(typename, exception, **kwargs):
@@ -134,10 +132,16 @@ def get_project_by_id(projectId):
 def post_project(project_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    project_record['id'] = iid
+    if not project_record.get('id'):
+        iid = uuid.uuid1()
+        project_record['id'] = iid
+    else:
+        iid = project_record['id']
+
+    if not project_record.get('version'):
+        project_record['version'] = Version
+
     project_record['created'] = datetime.datetime.utcnow()
-    project_record['version'] = Version
 
     try:
         orm_project = orm.models.Project(**project_record)
@@ -149,7 +153,7 @@ def post_project(project_record):
         db_session.add(orm_project)
         db_session.commit()
     except exc.IntegrityError:
-        err = _report_object_exists('project: '+project_record['name'], **project_record)
+        err = _report_object_exists('project: '+project_record['id'], **project_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('project', e, **project_record)
@@ -232,10 +236,16 @@ def get_study_by_id(studyId):
 def post_study(study_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    study_record['id'] = iid
+    if not study_record.get('id'):
+        iid = uuid.uuid1()
+        study_record['id'] = iid
+    else:
+        iid = study_record['id']
+
+    if not study_record.get('version'):
+        study_record['version'] = Version
+
     study_record['created'] = datetime.datetime.utcnow()
-    study_record['version'] = Version
 
     try:
         orm_study = orm.models.Study(**study_record)
@@ -246,8 +256,8 @@ def post_study(study_record):
     try:
         db_session.add(orm_study)
         db_session.commit()
-    except exc.IntegrityError as e:
-        err = _report_object_exists('study: ' + study_record['name'], **study_record)
+    except exc.IntegrityError:
+        err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('study', e, **study_record)
@@ -353,17 +363,29 @@ def get_expression_by_id(expressionId):
 def post_expression(expression_record):
     db_session = orm.get_session()
 
-    iid = uuid.uuid1()
-    base_url = app.config.get('BASE_DL_URL') + BasePath
-
-    expression_record['id'] = iid
-    expression_record['created'] = datetime.datetime.utcnow()
-    expression_record['version'] = Version
-    expression_record['URL'] = base_url+'/expressions/download/'+str(iid)
-
-    if expression_record['fileType'] != '.h5':
-        err = Error(message="Expression matrix must be fileType '.h5'", code=400)
+    if expression_record.get('__filepath__'):
+        file_path = expression_record['__filepath__']
+        if not os.path.isfile(file_path):
+            err = Error(message="Invalid file path: " + file_path, code=400)
+            return err, 400
+    else:
+        err = Error(message="An absolute __filepath__ is required", code=400)
         return err, 400
+
+    if not expression_record.get('id'):
+        iid = uuid.uuid1()
+        expression_record['id'] = iid
+    else:
+        iid = expression_record['id']
+
+    if not expression_record.get('version'):
+        expression_record['version'] = Version
+
+    if not expression_record.get('URL'):
+        base_url = app.config.get('BASE_DL_URL') + BasePath
+        expression_record['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
+
+    expression_record['created'] = datetime.datetime.utcnow()
 
     try:
         orm_expression = orm.models.File(**expression_record)
@@ -375,7 +397,7 @@ def post_expression(expression_record):
         db_session.add(orm_expression)
         db_session.commit()
     except exc.IntegrityError:
-        err = _report_object_exists('expression: ' + expression_record['id'], **expression_record)
+        err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('expression', e, **expression_record)
@@ -389,9 +411,9 @@ def post_expression(expression_record):
 
 @apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
-                      version=None, featureIDList=None, featureNameList=None,
-                      featureAccessionList=None, minExpression=None, maxExpression=None,
-                      featureThresholdLabel="name", file_type=".h5"):
+                           version=None, featureIDList=None, featureNameList=None,
+                           featureAccessionList=None, minExpression=None, maxExpression=None,
+                           featureThresholdLabel="name", output="json"):
     """
 
     :param tags: optional Comma separated tag list
@@ -402,31 +424,12 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :param featureIDList: optional filter by listed feature IDs
     :param featureNameList: optional filter by listed features
     :param featureAccessionList: optional filter bys by listed accession numbers
-    :param file_type: output file type (not a part of schema yet)
+    :param output: output file type (not a part of schema yet)
     :return: expression matrices matching filters
     """
-    db_session = orm.get_session()
-    expression = orm.models.File
-    tmp_dir = app.config.get('TMP_DIRECTORY')
 
     try:
-        # TODO: find better way to filter for expression data?
-        expressions = db_session.query(expression)
-        expressions = expressions.filter(expression.fileType == ".h5")
-
-        # db queries
-        if version:
-            expressions = expressions.filter(expression.version.like('%' + version + '%'))
-        if tags:
-            # return any project that matches at least one tag
-            expressions = expressions.filter(or_(*[expression.tags.contains(tag) for tag in tags]))
-        if studyID:
-            validate_uuid_string('studyID', studyID)
-            expressions = expressions.filter(expression.studyID == studyID)
-        if projectID:
-            validate_uuid_string('projectID', projectID)
-            study_list = get_study_by_project(projectID)
-            expressions = expressions.filter(expression.studyID.in_(study_list))
+        expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, featureAccessionList, maxExpression, minExpression]):
             pass
@@ -437,40 +440,14 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             responses = []
             try:
                 for expr in expressions:
-                    output_file_id = uuid.uuid1()
-                    output_filepath = tmp_dir+str(output_file_id)+file_type
-                    feature_map = pkg_resources.resource_filename('candig_rnaget',
-                                                                  'expression/feature_mapping_HGNC.tsv')
-                    try:
-                        h5query = ExpressionQueryTool(
-                            expr.__filepath__,
-                            output_filepath,
-                            include_metadata=False,
-                            output_type=file_type,
-                            feature_map=feature_map
-                        )
-                    except OSError as err:
-                        logger().warning(struct_log(action=str(err)))
-                        continue
+                    file_response = slice_expression_data(
+                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        output, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                    )
+                    if file_response:
+                        responses.append(file_response)
 
-                    if sampleID or featureIDList or featureNameList or featureAccessionList:
-                        q = h5query.search(
-                            sample_id=sampleID,
-                            feature_list_id=featureIDList,
-                            feature_list_name=featureNameList,
-                            feature_list_accession=featureAccessionList
-                        )
-                    elif minExpression:
-                        threshold_array = convert_threshold_array(minExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=featureThresholdLabel)
-                    else:
-                        threshold_array = convert_threshold_array(maxExpression)
-                        q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=featureThresholdLabel)
-
-                    h5query.close()
-                    responses.append(generate_file_response(q, file_type, output_file_id, expr.studyID))
-
-            except ThresholdValueError as e:
+            except (ThresholdValueError, UnsupportedOutputError) as e:
                 err = Error(
                     message=str(e),
                     code=400)
@@ -492,13 +469,157 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
 
 @apilog
+def post_search_expressions(expression_search):
+
+    # Parse search object
+    version = expression_search.get("version")
+    tags = expression_search.get("tags")
+    studyID = expression_search.get("studyID")
+    projectID = expression_search.get("projectID")
+    sampleID = expression_search.get("sampleID")
+    featureIDList = expression_search.get("featureIDList")
+    featureNameList = expression_search.get("featureNameList")
+    maxExpression = expression_search.get("maxExpression")
+    minExpression = expression_search.get("minExpression")
+
+    # If not supplied, set defaults
+    featureThresholdLabel = expression_search.get("featureThresholdLabel", "name")
+    file_type = expression_search.get("output", "h5")
+
+    try:
+        expressions = filter_expression_data(version, tags, studyID, projectID)
+
+        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+            pass
+
+        else:
+            # H5 queries
+            responses = []
+            try:
+                for expr in expressions:
+                    file_response = slice_expression_data(
+                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        file_type, threshold_label=featureThresholdLabel, threshold_input_type='object'
+                    )
+                    if file_response:
+                        responses.append(file_response)
+
+            except (ThresholdValueError, UnsupportedOutputError) as e:
+                err = Error(
+                    message=str(e),
+                    code=400)
+                return err, 400
+
+            return responses, 200
+
+    except IdentifierFormatError as e:
+        err = Error(
+            message=str(e),
+            code=400)
+        return err, 400
+
+    except orm.ORMException as e:
+        err = _report_search_failed('expression', e)
+        return err, 500
+
+    return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+
+
+def filter_expression_data(version, tags, study_id, project_id):
+    """
+    Performs the database queries to filter expression files
+    """
+    db_session = orm.get_session()
+    expression = orm.models.File
+
+    # TODO: find better way to filter for expression data?
+    expressions = db_session.query(expression).filter(expression.fileType == "h5")
+
+    # db queries
+    if version:
+        expressions = expressions.filter(expression.version.like('%' + version + '%'))
+    if tags:
+        # return any project that matches at least one tag
+        expressions = expressions.filter(or_(*[expression.tags.contains(tag) for tag in tags]))
+    if study_id:
+        validate_uuid_string('studyID', study_id)
+        expressions = expressions.filter(expression.studyID == study_id)
+    if project_id:
+        validate_uuid_string('projectID', project_id)
+        study_list = get_study_by_project(project_id)
+        expressions = expressions.filter(expression.studyID.in_(study_list))
+
+    return expressions
+
+
+def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
+                          threshold_label='name', threshold_input_type='array'):
+    """
+    Performs the slicing on each expression file
+    :param threshold_input_type:
+    :return: temporary file response object
+    """
+    tmp_dir = app.config.get('TMP_DIRECTORY')
+
+    output_file_id = uuid.uuid1()
+    output_filepath = tmp_dir + str(output_file_id) + '.' + file_type
+    feature_map = pkg_resources.resource_filename('candig_rnaget',
+                                                  'expression/feature_mapping_HGNC.tsv')
+
+    try:
+        h5query = ExpressionQueryTool(
+            expr.__filepath__,
+            output_filepath,
+            include_metadata=False,
+            output_type=file_type,
+            feature_map=feature_map
+        )
+
+        if sampleID or featureIDList or featureNameList:
+            q = h5query.search(
+                sample_id=sampleID,
+                feature_list_id=featureIDList,
+                feature_list_name=featureNameList
+            )
+        elif minExpression:
+            threshold_array = convert_threshold_array(minExpression, input_format=threshold_input_type)
+            q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=threshold_label)
+        else:
+            threshold_array = convert_threshold_array(maxExpression, input_format=threshold_input_type)
+            q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=threshold_label)
+
+        h5query.close()
+
+    # HDF5 file error
+    except OSError as err:
+        logger().warning(struct_log(action=str(err)))
+        return None
+
+    # Given feature list or sample ID does not contain any valid entries
+    except LookupError as err:
+        logger().warning(struct_log(action=str(err)))
+        return None
+
+    return generate_file_response(q, file_type, output_file_id, expr.studyID)
+
+
+@apilog
+def get_expressions():
+    """
+
+    :return: available expression matrices
+    """
+    return get_search_expressions()
+
+
+@apilog
 def search_expression_filters(filterType=None):
     """
 
     :param filterType: optional one of `feature` or `sample`. If blank, both will be returned
     :return: filters for expression searches
     """
-    filter_file = pkg_resources.resource_filename('candig_rnaget','orm/filters_expression.json')
+    filter_file = pkg_resources.resource_filename('candig_rnaget', 'orm/filters_expression.json')
 
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
@@ -684,13 +805,13 @@ def tmp_download(token):
 
 
 @apilog
-def expression_download(token):
+def expression_download(file):
     """
 
-    :param token: for now using the file identifier
+    :param file: expression file name
     :return: file attachment type application/octet-stream
     """
-    return download_file(token)
+    return download_file(file)
 
 
 def generate_file_response(results, file_type, file_id, study_id):
@@ -700,12 +821,12 @@ def generate_file_response(results, file_type, file_id, study_id):
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
 
-    if file_type == ".json":
-        tmp_file_path = os.path.join(tmp_dir, str(file_id) + file_type)
+    if file_type == "json":
+        tmp_file_path = os.path.join(tmp_dir, str(file_id)+'.json')
         with open(tmp_file_path, 'w') as outfile:
             json.dump(results, outfile)
 
-    elif file_type == ".h5":
+    elif file_type == "h5":
         # results file written to hdf5 in mem
         tmp_file_path = results.filename
         results.close()
@@ -759,7 +880,12 @@ def download_file(token, temp_file=False):
             file_path = access_file.__filepath__
 
             if os.path.isfile(file_path):
-                response = flask.send_file(file_path, as_attachment=True)
+                if access_file.fileType == "json":
+                    with open(file_path, 'r') as json_file:
+                        data = json.load(json_file)
+                    response = flask.make_response(json.dumps(data))
+                else:
+                    response = flask.send_file(file_path, as_attachment=True)
             else:
                 err = Error(message="File not found (link may have expired)", code=404)
                 return err, 404
@@ -773,23 +899,30 @@ def download_file(token, temp_file=False):
         return err, 404
 
 
-def convert_threshold_array(threshold_input):
+def convert_threshold_array(threshold_input, input_format='array'):
     """
     query parameter threshold array formatted: Feature,Value,Feature,Value
     :param threshold_input: query parameter threshold array
+    :param input_format: one of 'array' or 'object'
     :return: list of feature/threshold tuples or raise error
     """
     threshold_output = []
     try:
-        for i in range(int(len(threshold_input)/2)):
-            threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
+        if input_format == 'array':
+            for i in range(int(len(threshold_input)/2)):
+                threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
+        elif input_format == 'object':
+            for k, v in threshold_input.items():
+                threshold_output.append((k, float(v)))
+        else:
+            raise ValueError("input_format must be: 'array' or 'object'")
     except ValueError as err:
         raise ThresholdValueError from err
     else:
         return threshold_output
 
 
-def get_expression_file_path(expressionId):
+def get_expression_file_path(file):
     """
 
     :param expressionId: required identifier
@@ -797,23 +930,18 @@ def get_expression_file_path(expressionId):
     """
     db_session = orm.get_session()
     expression = orm.models.File
+    base_url = app.config.get('BASE_DL_URL') + BasePath
+    file_url = base_url + '/expressions/download/' + file
 
     try:
-        validate_uuid_string('id', expressionId)
-        expr_matrix = db_session.query(expression).get(expressionId)
-
-    except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        expr_matrix = db_session.query(expression).filter(expression.URL == file_url).one()
 
     except orm.ORMException as e:
-        err = _report_search_failed('file', e, expression_id=expressionId)
+        err = _report_search_failed('file', e, URL=file_url)
         return err, 500
 
     if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + expressionId, code=404)
+        err = Error(message="Expression matrix not found: " + file, code=404)
         return err, 404
 
     return expr_matrix.__filepath__

@@ -32,7 +32,9 @@ with open("requirements.txt") as requirements:
         install_requires.append(version_pin)
 
 data_files = [('api', ['candig_rnaget/api/rnaget.yaml']),
-              ('data', ['candig_rnaget/expression/feature_mapping_HGNC.tsv'])]
+              ('data', ['candig_rnaget/expression/feature_mapping_HGNC.tsv',
+                        'candig_rnaget/orm/filters_expression.json',
+                        'candig_rnaget/orm/filters_search.json'])]
 
 setup(
     author="BCGSC",
