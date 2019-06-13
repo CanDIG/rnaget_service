@@ -29,4 +29,5 @@ install:
 script: tox
 
 # Code cov reports
-after_success: bash < (curl -s https://codecov.io/bash)
+after_success:
+ - bash <(curl -s https://codecov.io/bash)
