@@ -458,7 +458,7 @@ paths:
         description: one of `id` or `name` or `accession` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
         required: false
         type: string
-      - name: output
+      - name: format
         in: query
         description: output file formats supported `h5` or `json`
         x-example: h5
@@ -520,9 +520,9 @@ paths:
       - application/xml
       - application/json
       parameters:
-      - name: filterType
+      - name: Accept
         in: query
-        description: one of `feature` or `sample` reflecting which axis to request filters for.  If blank, both will be returned
+        description: only `application/vnd.ga4gh.rnaget.v1.0.0+json` supported for now
         required: false
         type: string
       responses:
