@@ -8,7 +8,7 @@ import pandas as pd
 from collections import OrderedDict
 
 app = flask.current_app
-SUPPORTED_OUTPUT_FORMATS = ["json", "h5"]  # "loom"]
+SUPPORTED_OUTPUT_FORMATS = ["json", "h5", "loom"]
 
 
 class UnsupportedOutputError(ValueError):
@@ -123,6 +123,11 @@ class ExpressionQueryTool(object):
 
                 results[self._expression_matrix].attrs["units"] = expression.attrs.get("units")
 
+            elif self._output_format == "loom":
+                results["ra"]["Accession"] = np.array(list(map(bytes.decode, feature_load)))
+                results["matrix"] = sample_expressions.reshape(sample_expressions.shape[0], 1)
+                results["ca"]["SampleID"] = np.array([sample_id])
+
             if self._include_metadata:
                 counts = self.get_raw_counts()
                 sample_counts = counts[sample_index, ...]
@@ -145,8 +150,6 @@ class ExpressionQueryTool(object):
         indices = self._get_hdf5_indices(self._features, feature_list)
         results = self._build_results_template(expression)
         counts = None
-        feature_expressions = []
-        sample_expressions = []
         supplementary_feature_array = None
 
         if supplementary_feature_label:
@@ -188,8 +191,10 @@ class ExpressionQueryTool(object):
                 else:
                     break
 
-            sample_expressions = expression_df.values
+            search_expressions = expression_df.values
             samples_list = [samples[idx].decode() for idx in expression_df.index]
+            if not samples_list:
+                raise LookupError("No threshold matches found")
 
         else:
             if self._output_format == "json":
@@ -198,14 +203,11 @@ class ExpressionQueryTool(object):
                 else:
                     results["features"] = list(indices.keys())
 
-            feature_expressions = list(expression[:, feature_slices])
+            search_expressions = list(expression[:, feature_slices])
             samples_list = list(map(bytes.decode, self.get_samples()))
 
         if self._output_format == "json":
-            if feature_expressions:
-                results["expression"] = dict(zip(samples_list, (map(list, feature_expressions))))
-            else:
-                results["expression"] = dict(zip(samples_list, (map(list, sample_expressions))))
+            results["expression"] = dict(zip(samples_list, (map(list, search_expressions))))
 
             if self._include_metadata:
                 feature_counts = list(counts[:, feature_slices])
@@ -216,20 +218,22 @@ class ExpressionQueryTool(object):
             encoded_samples = [sample.encode('utf-8') for sample in samples_list]
             encoded_features = [feature.encode('utf-8') for feature in indices]
 
-            if len(feature_expressions) > 0:
-                results = self._write_hdf5_results(
-                    results, encoded_samples, encoded_features, feature_expressions,
-                    suppl_features_label=supplementary_feature_array)
-
-            elif len(sample_expressions) > 0:
-                results = self._write_hdf5_results(
-                    results, encoded_samples, encoded_features, sample_expressions,
-                    suppl_features_label=supplementary_feature_array)
+            results = self._write_hdf5_results(
+                results, encoded_samples, encoded_features, search_expressions,
+                suppl_features_label=supplementary_feature_array)
 
             if self._include_metadata:
                 feature_counts = list(counts[:, feature_slices])
                 results = self._write_hdf5_metadata(
                     results, len(encoded_samples), len(encoded_features), counts=feature_counts)
+
+        elif self._output_format == "loom":
+            results["matrix"] = np.array(np.transpose(search_expressions))
+            results["ra"]["Accession"] = np.array([feature for feature in indices])
+
+            if supplementary_feature_array:
+                results["ra"]["Gene"] = np.array(supplementary_feature_array)
+            results["ca"]["SampleID"] = np.array(samples_list)
 
         return results
 
@@ -304,6 +308,16 @@ class ExpressionQueryTool(object):
                     if self._include_metadata:
                         results = self._write_hdf5_metadata(
                             results, len(encoded_samples), len(encoded_features), counts=feature_counts)
+
+                elif self._output_format == "loom":
+                    f_matrix = np.array(feature_expressions)
+                    results["matrix"] = f_matrix.reshape(f_matrix.shape[0], 1)
+
+                    results["ra"]["Accession"] = np.array([feature for feature in feature_indices])
+                    if supplementary_feature_array:
+                        results["ra"]["Gene"] = np.array(supplementary_feature_array)
+
+                    results["ca"]["SampleID"] = np.array([sample_id])
 
             return results
 
@@ -425,8 +439,17 @@ class ExpressionQueryTool(object):
                 }
 
         elif self._output_format == 'h5':
-            file_path = self._output_file
-            results = h5py.File(file_path, 'w', driver='core')
+            results = h5py.File(self._output_file, 'w', driver='core')
+
+        elif self._output_format == 'loom':
+            # make a dict to pass to loompy.create()
+            results = {
+                'filename': self._output_file,
+                'matrix': None,
+                'ra': {},
+                'ca': {},
+                'units': expression_matrix.attrs.get("units")
+            }
         else:
             results = None
 

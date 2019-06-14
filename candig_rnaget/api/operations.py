@@ -9,6 +9,7 @@ import flask
 import os
 import json
 import pkg_resources
+import loompy
 
 from sqlalchemy import or_
 from sqlalchemy import exc
@@ -139,9 +140,11 @@ def post_project(project_record):
         db_session.add(orm_project)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('project: '+project_record['id'], **project_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('project', e, **project_record)
         return err, 500
 
@@ -243,6 +246,7 @@ def post_study(study_record):
         db_session.add(orm_study)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
@@ -383,6 +387,7 @@ def post_expression(expression_record):
         db_session.add(orm_expression)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
@@ -660,6 +665,7 @@ def post_change_log(change_log_record):
         db_session.add(orm_changelog)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('changelog: ' + change_log_record['version'], **change_log_record)
         return err, 405
     except orm.ORMException as e:
@@ -813,9 +819,12 @@ def generate_file_response(results, file_type, file_id, study_id):
             json.dump(results, outfile)
 
     elif file_type == "h5":
-        # results file written to hdf5 in mem
         tmp_file_path = results.filename
-        results.close()
+        results.close() # writes temp file to disk
+
+    elif file_type == "loom":
+        tmp_file_path = results["filename"]
+        loompy.create(tmp_file_path, results["matrix"], results["ra"], results["ca"])
 
     else:
         raise ValueError("Invalid file type")

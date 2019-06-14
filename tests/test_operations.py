@@ -38,6 +38,30 @@ def load_test_client(db_filename="operations.db"):  # pylint: disable=too-many-l
     return project, study, expression, context
 
 
+def test_post_project_exists(test_client):
+    """
+    post_project
+    """
+    sample_project, _, _, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.post_project({'id': sample_project['id'], 'name': 'main_test_project'})
+        assert(code == 405)
+
+
+def test_post_project_orm_error(test_client):
+    """
+    post_project
+    """
+    sample_project, _, _, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.post_project({'id': 12345678910, 'name': 1})
+        assert(code == 500)
+
+
 def test_get_project_by_id(test_client):
     """
     get_project_by_id
@@ -324,7 +348,7 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
     with context:
         # minExpression (200)
         result, code = operations.get_search_expressions(
-            minExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='json')
+            minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='json')
         assert(len(result) == 1)
         assert (result[0]['fileType'] == 'json')
         assert(code == 200)
@@ -416,7 +440,7 @@ def test_get_search_expressions_slice_by_threshold_h5(test_client):
 
     with context:
         # minExpression (200)
-        result, code = operations.get_search_expressions(minExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='h5')
+        result, code = operations.get_search_expressions(minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='h5')
         assert(len(result) == 1)
         assert(result[0]['fileType'] == 'h5')
         assert(code == 200)
@@ -425,6 +449,92 @@ def test_get_search_expressions_slice_by_threshold_h5(test_client):
         result, code = operations.get_search_expressions(maxExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='h5')
         assert(len(result) == 1)
         assert(result[0]['fileType'] == 'h5')
+        assert(code == 200)
+
+
+def test_get_search_expressions_slice_by_sample_loom(test_client):
+    """
+    get_search_expressions
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        # bad sample id (200)
+        result, code = operations.get_search_expressions(sampleID="blah")
+        assert(len(result) == 0)
+        assert(code == 200)
+
+        # valid sample id (200)
+        result, code = operations.get_search_expressions(sampleID="DO221123", format='loom')
+        assert(result[0]['studyID'] == uuid.UUID(sample_expression['studyID']))
+        assert(result[0]['fileType'] == 'loom')
+        assert(code == 200)
+
+
+def test_get_search_expressions_slice_by_feature_id_loom(test_client):
+    """
+    get_search_expressions
+    """
+    context = test_client[3]
+
+    with context:
+        # feature ID list (200)
+        result, code = operations.get_search_expressions(
+            featureIDList=['ENSG00000000003', 'ENSG00000000005'], format='loom')
+        assert(len(result) == 1)
+        assert (result[0]['fileType'] == 'loom')
+        assert(code == 200)
+        tmp_id = result[0]['id']
+        with app.app.test_request_context():
+            response = operations.tmp_download(str(tmp_id))
+            assert(response.status_code == 200)
+
+
+def test_get_search_expressions_slice_by_feature_name_loom(test_client):
+    """
+    get_search_expressions
+    """
+    context = test_client[3]
+
+    with context:
+        # feature name list (200)
+        result, code = operations.get_search_expressions(featureNameList=['TSPAN6', 'TNMD'], format='loom')
+        assert(len(result) == 1)
+        assert(code == 200)
+
+
+def test_get_search_expressions_slice_by_feature_sample_loom(test_client):
+    """
+    get_search_expressions
+    """
+    context = test_client[3]
+
+    with context:
+        # feature name list (200)
+        result, code = operations.get_search_expressions(
+            featureNameList=['TSPAN6', 'TNMD'], sampleID='DO221123', format='loom')
+        assert(len(result) == 1)
+        assert (result[0]['fileType'] == 'loom')
+        assert(code == 200)
+
+
+def test_get_search_expressions_slice_by_threshold_loom(test_client):
+    """
+    get_search_expressions
+    """
+    context = test_client[3]
+
+    with context:
+        # minExpression (200)
+        result, code = operations.get_search_expressions(minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='loom')
+        assert(len(result) == 1)
+        assert(result[0]['fileType'] == 'loom')
+        assert(code == 200)
+
+        # maxExpression (200)
+        result, code = operations.get_search_expressions(maxExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='loom')
+        assert(len(result) == 1)
+        assert(result[0]['fileType'] == 'loom')
         assert(code == 200)
 
 
@@ -440,12 +550,24 @@ def test_post_search_expressions_name_threshold(test_client):
             {
                 'version': Version,
                 'tags': ['test'],
-                'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 1.0},
-                                  {'featureID': 'ENSG00000000005', 'threshold': 2.0}]
+                'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 0.1},
+                                  {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
             }
         )
         assert(len(result) == 1)
         assert(result[0]['fileType'] == 'h5')
+        assert(code == 200)
+
+        # min Expression feature no threshold match
+        result, code = operations.post_search_expressions(
+            {
+                'version': Version,
+                'tags': ['test'],
+                'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 1000},
+                                  {'featureID': 'ENSG00000000005', 'threshold': 1000}]
+            }
+        )
+        assert(len(result) == 0)
         assert(code == 200)
 
 
@@ -460,8 +582,8 @@ def test_post_search_expressions_id_threshold(test_client):
         result, code = operations.post_search_expressions(
             {
                 'format': 'json',
-                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 1.0},
-                                  {'featureName': 'TNMD', 'threshold': 2.0}]
+                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
+                                  {'featureName': 'TNMD', 'threshold': 0.2}]
             }
         )
         assert(len(result) == 1)
@@ -480,8 +602,8 @@ def test_post_search_expressions_error_threshold(test_client):
         result, code = operations.post_search_expressions(
             {
                 'format': 'json',
-                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 1.0},
-                                  {'featureID': 'ENSG00000000005', 'threshold': 2.0}]
+                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
+                                  {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
             }
         )
         assert (code == 400)
@@ -492,6 +614,22 @@ def test_post_search_expressions_error_threshold(test_client):
                 'format': 'json',
                 'minExpression': [{'invalid': 'TSPAN6'},
                                   {'invalid': 'ENSG00000000005', 'threshold': 2.0}]
+            }
+        )
+        assert (code == 400)
+
+
+def test_post_search_expressions_error_uuid(test_client):
+    """
+    post_search_expressions
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        # uuid error (400)
+        result, code = operations.post_search_expressions(
+            {
+                'studyID': 'not a uuid',
             }
         )
         assert (code == 400)
