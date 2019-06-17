@@ -9,6 +9,7 @@ import flask
 import os
 import json
 import pkg_resources
+import loompy
 
 from sqlalchemy import or_
 from sqlalchemy import exc
@@ -18,6 +19,7 @@ from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import Error, BasePath, Version
 from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
 from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
+from candig_rnaget.expression.rnaget_query import SUPPORTED_OUTPUT_FORMATS
 
 app = flask.current_app
 
@@ -84,20 +86,6 @@ def _report_write_error(typename, exception, **kwargs):
     return err
 
 
-def db_lookup_projects():
-    db_session = orm.get_session()
-    project = orm.models.Project
-
-    try:
-        projects = db_session.query(project)
-    except orm.ORMException as e:
-        err = _report_search_failed('project', e)
-        print(err)
-        return err, 500
-
-    return [orm.dump(x) for x in projects], 200
-
-
 @apilog
 def get_project_by_id(projectId):
     """
@@ -153,9 +141,11 @@ def post_project(project_record):
         db_session.add(orm_project)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('project: '+project_record['id'], **project_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('project', e, **project_record)
         return err, 500
 
@@ -257,6 +247,7 @@ def post_study(study_record):
         db_session.add(orm_study)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
@@ -397,6 +388,7 @@ def post_expression(expression_record):
         db_session.add(orm_expression)
         db_session.commit()
     except exc.IntegrityError:
+        db_session.rollback()
         err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
@@ -410,10 +402,21 @@ def post_expression(expression_record):
 
 
 @apilog
+def get_expression_formats():
+    """
+    :return: array of supported expression formats
+    """
+    formats = SUPPORTED_OUTPUT_FORMATS
+    if not formats:
+        return [], 404
+    return formats, 200
+
+
+@apilog
 def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
                            version=None, featureIDList=None, featureNameList=None,
-                           featureAccessionList=None, minExpression=None, maxExpression=None,
-                           featureThresholdLabel="name", output="json"):
+                           minExpression=None, maxExpression=None,
+                           featureThresholdLabel="name", format="h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -423,26 +426,23 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     :param version: optional version
     :param featureIDList: optional filter by listed feature IDs
     :param featureNameList: optional filter by listed features
-    :param featureAccessionList: optional filter bys by listed accession numbers
-    :param output: output file type (not a part of schema yet)
+    :param format: output file type (not a part of schema yet)
     :return: expression matrices matching filters
     """
 
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
-        if not any([sampleID, featureIDList, featureNameList, featureAccessionList, maxExpression, minExpression]):
+        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
             pass
 
         else:
-            # H5 queries
-            # TODO: feature name and feature accession lookups
             responses = []
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
                         expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
-                        output, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                        format, threshold_label=featureThresholdLabel, threshold_input_type='array'
                     )
                     if file_response:
                         responses.append(file_response)
@@ -483,8 +483,7 @@ def post_search_expressions(expression_search):
     minExpression = expression_search.get("minExpression")
 
     # If not supplied, set defaults
-    featureThresholdLabel = expression_search.get("featureThresholdLabel", "name")
-    file_type = expression_search.get("output", "h5")
+    file_type = expression_search.get("format", "h5")
 
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
@@ -499,7 +498,7 @@ def post_search_expressions(expression_search):
                 for expr in expressions:
                     file_response = slice_expression_data(
                         expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
-                        file_type, threshold_label=featureThresholdLabel, threshold_input_type='object'
+                        file_type, threshold_label=None, threshold_input_type='object'
                     )
                     if file_response:
                         responses.append(file_response)
@@ -582,9 +581,19 @@ def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExp
                 feature_list_name=featureNameList
             )
         elif minExpression:
+            if threshold_input_type == 'object':
+                if validate_threshold_object(minExpression[0])[0] == 'featureName':
+                    threshold_label = 'name'
+                else:
+                    threshold_label = 'id'
             threshold_array = convert_threshold_array(minExpression, input_format=threshold_input_type)
             q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=threshold_label)
         else:
+            if threshold_input_type == 'object':
+                if validate_threshold_object(maxExpression[0])[0] == 'featureName':
+                    threshold_label = 'name'
+                else:
+                    threshold_label = 'id'
             threshold_array = convert_threshold_array(maxExpression, input_format=threshold_input_type)
             q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=threshold_label)
 
@@ -613,28 +622,22 @@ def get_expressions():
 
 
 @apilog
-def search_expression_filters(filterType=None):
+def search_expression_filters(Accept=None):
     """
 
-    :param filterType: optional one of `feature` or `sample`. If blank, both will be returned
+    :param Accept: content type to return
     :return: filters for expression searches
     """
     filter_file = pkg_resources.resource_filename('candig_rnaget', 'orm/filters_expression.json')
 
+    if Accept and Accept != "application/vnd.ga4gh.rnaget.v1.0.0+json":
+        err = Error(message="Not Acceptable", code=406)
+        return err, 406
+
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
 
-    if filterType:
-        response = []
-        if filterType not in ['feature', 'sample']:
-            err = Error(message="Invalid type: " + filterType, code=400)
-            return err, 400
-
-        for expression_filter in expression_filters:
-            if expression_filter["filterType"] == filterType:
-                response.append(expression_filter)
-    else:
-        response = expression_filters
+    response = expression_filters
 
     return response, 200
 
@@ -674,7 +677,8 @@ def post_change_log(change_log_record):
         db_session.add(orm_changelog)
         db_session.commit()
     except exc.IntegrityError:
-        err = _report_object_exists('changelog: ' + change_log_record['name'], **change_log_record)
+        db_session.rollback()
+        err = _report_object_exists('changelog: ' + change_log_record['version'], **change_log_record)
         return err, 405
     except orm.ORMException as e:
         err = _report_write_error('changelog', e, **change_log_record)
@@ -793,25 +797,40 @@ def get_study_by_project(projectID):
     return study_id_list
 
 
-# TODO: setup DRS/DOS for temp files and hdf5 storage?
-@apilog
-def tmp_download(token):
+def get_continuous_by_id(continuousId):
+    """
+    TODO: Implement
     """
 
-    :param token: for now using the file identifier
-    :return: h5 file with type application/octet-stream
-    """
-    return download_file(token, temp_file=True)
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
 
 
-@apilog
-def expression_download(file):
+def get_continuous_formats():
+    """
+    TODO: Implement
     """
 
-    :param file: expression file name
-    :return: file attachment type application/octet-stream
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
+def search_continuous(format):
     """
-    return download_file(file)
+    TODO: Implement
+    """
+
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
 
 
 def generate_file_response(results, file_type, file_id, study_id):
@@ -827,9 +846,12 @@ def generate_file_response(results, file_type, file_id, study_id):
             json.dump(results, outfile)
 
     elif file_type == "h5":
-        # results file written to hdf5 in mem
         tmp_file_path = results.filename
-        results.close()
+        results.close() # writes temp file to disk
+
+    elif file_type == "loom":
+        tmp_file_path = results["filename"]
+        loompy.create(tmp_file_path, results["matrix"], results["ra"], results["ca"])
 
     else:
         raise ValueError("Invalid file type")
@@ -847,59 +869,7 @@ def generate_file_response(results, file_type, file_id, study_id):
     return create_tmp_file_record(file_record)
 
 
-def download_file(token, temp_file=False):
-    """
-    Generic file exporter
-    """
-
-    try:
-        if not temp_file:
-            access_file = get_expression_file_path(token)
-            if not access_file:
-                err = Error(message="File not found", code=404)
-                return err, 404
-            response = flask.send_file(access_file, as_attachment=True)
-        # use tmp directory file ID's
-        else:
-            db_session = orm.get_session()
-            temp_file = orm.models.TempFile
-
-            try:
-                access_file = db_session.query(temp_file).get(token)
-            except exc.StatementError:
-                err = Error(message="Invalid file token: " + str(token), code=404)
-                return err, 404
-            except orm.ORMException as e:
-                err = _report_search_failed('file', e, expression_id=token)
-                return err, 500
-
-            if not access_file:
-                err = Error(message="File not found (link may have expired)", code=404)
-                return err, 404
-
-            file_path = access_file.__filepath__
-
-            if os.path.isfile(file_path):
-                if access_file.fileType == "json":
-                    with open(file_path, 'r') as json_file:
-                        data = json.load(json_file)
-                    response = flask.make_response(json.dumps(data))
-                else:
-                    response = flask.send_file(file_path, as_attachment=True)
-            else:
-                err = Error(message="File not found (link may have expired)", code=404)
-                return err, 404
-
-        response.direct_passthrough = False
-        return response
-
-    except Exception as e:
-        print(type(e))
-        err = _report_search_failed('file', e)
-        return err, 404
-
-
-def convert_threshold_array(threshold_input, input_format='array'):
+def convert_threshold_array(threshold_input, input_format=None):
     """
     query parameter threshold array formatted: Feature,Value,Feature,Value
     :param threshold_input: query parameter threshold array
@@ -912,14 +882,36 @@ def convert_threshold_array(threshold_input, input_format='array'):
             for i in range(int(len(threshold_input)/2)):
                 threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
         elif input_format == 'object':
-            for k, v in threshold_input.items():
-                threshold_output.append((k, float(v)))
+            feature_label, threshold = list(validate_threshold_object(threshold_input[0]))
+            if not all([threshold, feature_label]):
+                raise ValueError()
+            for threshold_obj in threshold_input:
+                if all(k in threshold_obj for k in ['threshold', feature_label]):
+                    threshold_output.append((threshold_obj[feature_label], threshold_obj['threshold']))
+                else:
+                    raise ValueError("invalid threshold object")
         else:
             raise ValueError("input_format must be: 'array' or 'object'")
     except ValueError as err:
-        raise ThresholdValueError from err
+        raise ThresholdValueError(err) from err
     else:
         return threshold_output
+
+
+def validate_threshold_object(threshold_obj):
+    """
+    Ensures the threshold object contains the necessary fields
+    """
+    threshold = threshold_obj.get('threshold')
+
+    if 'featureName' in threshold_obj:
+        feature_label = 'featureName'
+    elif 'featureID' in threshold_obj:
+        feature_label = 'featureID'
+    else:
+        feature_label = None
+
+    return feature_label, threshold
 
 
 def get_expression_file_path(file):

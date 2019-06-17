@@ -2,7 +2,7 @@ import json
 import dredd_hooks as hooks
 
 UUID_EXAMPLE = "be2ba51c-8dfe-4619-b832-31c4a087a589"
-VERSION = "0.9.0"
+VERSION = "0.9.3"
 RO_FIELDS = ["created", "id"]
 response_stash = {}
 
@@ -95,10 +95,3 @@ def insert_change_version(transaction):
 @hooks.before("expressions > /rnaget/expressions/{expressionId} > Find expression by ID > 404 > application/json")
 def let_pass(transaction):
     transaction['skip'] = False
-
-
-# skipping file download endpoints
-@hooks.before("download temp file > /rnaget/download/{token} > Download the file as an available file type > 200 > application/json")
-@hooks.before("download expression > /rnaget/expressions/download/{file} > Download the file > 200 > application/json")
-def skip_test(transaction):
-    transaction['skip'] = True

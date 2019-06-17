@@ -9,6 +9,8 @@ import pkg_resources
 import connexion
 
 from tornado.options import define
+from candig_rnaget.api.models import BasePath
+from candig_rnaget.expression.download import tmp_download, persistent_download
 import candig_rnaget.orm
 
 # Expose WSGI application
@@ -16,6 +18,8 @@ app = connexion.FlaskApp(__name__, server='tornado')
 api_def = pkg_resources.resource_filename('candig_rnaget',
                                           'api/rnaget.yaml')
 app.add_api(api_def, strict_validation=True, validate_responses=True)
+app.add_url_rule(BasePath+'/expressions/download/<file>', 'persistent', persistent_download)
+app.add_url_rule(BasePath+'/download/<token>', 'tmp', tmp_download)
 application = app.app
 
 

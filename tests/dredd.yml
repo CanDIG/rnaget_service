@@ -8,7 +8,7 @@ custom: {}
 names: false
 only: []
 output: []
-header: ["api_key: test"]
+header: ["Authorization: test"]
 sorted: false
 user: null
 inline-errors: false
