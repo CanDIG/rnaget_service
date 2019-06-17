@@ -13,6 +13,7 @@ from candig_rnaget import orm
 from candig_rnaget.app import app
 from candig_rnaget.api import operations
 from candig_rnaget.api.models import BasePath, Version
+from candig_rnaget.expression.download import tmp_download, persistent_download
 
 import pytest
 
@@ -273,6 +274,19 @@ def test_get_search_expressions_filter_error(test_client):
         assert(code == 400)
 
 
+def test_get_expression_formats(test_client):
+    """
+    get_expression_formats
+    """
+    context = test_client[3]
+
+    with context:
+        # format list (200)
+        result, code = operations.get_expression_formats()
+        assert(len(result) > 0)
+        assert(code == 200)
+
+
 def test_get_search_expressions_slice_by_sample(test_client):
     """
     get_search_expressions
@@ -288,7 +302,7 @@ def test_get_search_expressions_slice_by_sample(test_client):
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleID="DO221123", format='json')
         assert(result[0]['studyID'] == uuid.UUID(sample_expression['studyID']))
-        assert (result[0]['fileType'] == 'json')
+        assert(result[0]['fileType'] == 'json')
         assert(code == 200)
 
 
@@ -306,7 +320,7 @@ def test_get_search_expressions_slice_by_feature_id_json(test_client):
         assert (result[0]['fileType'] == 'json')
         assert(code == 200)
         tmp_id = result[0]['id']
-        tmp_response = operations.tmp_download(str(tmp_id))
+        tmp_response = tmp_download(str(tmp_id))
         assert(tmp_response.status_code == 200)
 
 
@@ -400,7 +414,7 @@ def test_get_search_expressions_slice_by_feature_id_h5(test_client):
         assert(code == 200)
         tmp_id = result[0]['id']
         with app.app.test_request_context():
-            response = operations.tmp_download(str(tmp_id))
+            response = tmp_download(str(tmp_id))
             assert(response.status_code == 200)
 
 
@@ -486,7 +500,7 @@ def test_get_search_expressions_slice_by_feature_id_loom(test_client):
         assert(code == 200)
         tmp_id = result[0]['id']
         with app.app.test_request_context():
-            response = operations.tmp_download(str(tmp_id))
+            response = tmp_download(str(tmp_id))
             assert(response.status_code == 200)
 
 
@@ -686,7 +700,7 @@ def test_file_download(test_client):
         assert(code == 200)
         filename = result['URL'].split('/')[-1]
         with app.app.test_request_context():
-            response = operations.expression_download(filename)
+            response = persistent_download(filename)
             assert(response.status_code == 200)
 
 
@@ -754,6 +768,23 @@ def test_changelog(test_client):
         result, code = operations.get_change_log(version=Version)
         assert(result['version'] == Version)
         assert(code == 200)
+
+
+def test_continuous(test_client):
+    """
+    TODO: continuous endpoints are not yet supported. All should return 501 for now
+    """
+    context = test_client[3]
+
+    with context:
+        result, code = operations.get_continuous_by_id('be2ba51c-8dfe-4619-b832-31c4a087a589')
+        assert(code == 501)
+
+        result, code = operations.get_continuous_formats()
+        assert(code == 501)
+
+        result, code = operations.search_continuous('loom')
+        assert(code == 501)
 
 
 def load_expression(study_id):

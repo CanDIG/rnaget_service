@@ -19,6 +19,7 @@ from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import Error, BasePath, Version
 from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
 from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
+from candig_rnaget.expression.rnaget_query import SUPPORTED_OUTPUT_FORMATS
 
 app = flask.current_app
 
@@ -398,6 +399,17 @@ def post_expression(expression_record):
                              expression_id=str(iid), **expression_record))
 
     return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
+
+
+@apilog
+def get_expression_formats():
+    """
+    :return: array of supported expression formats
+    """
+    formats = SUPPORTED_OUTPUT_FORMATS
+    if not formats:
+        return [], 404
+    return formats, 200
 
 
 @apilog
@@ -785,25 +797,40 @@ def get_study_by_project(projectID):
     return study_id_list
 
 
-# TODO: setup DRS/DOS for temp files and hdf5 storage?
-@apilog
-def tmp_download(token):
+def get_continuous_by_id(continuousId):
+    """
+    TODO: Implement
     """
 
-    :param token: for now using the file identifier
-    :return: h5 file with type application/octet-stream
-    """
-    return download_file(token, temp_file=True)
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
 
 
-@apilog
-def expression_download(file):
+def get_continuous_formats():
+    """
+    TODO: Implement
     """
 
-    :param file: expression file name
-    :return: file attachment type application/octet-stream
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
+def search_continuous(format):
     """
-    return download_file(file)
+    TODO: Implement
+    """
+
+    err = Error(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
 
 
 def generate_file_response(results, file_type, file_id, study_id):
@@ -840,57 +867,6 @@ def generate_file_response(results, file_type, file_id, study_id):
     }
 
     return create_tmp_file_record(file_record)
-
-
-def download_file(token, temp_file=False):
-    """
-    Generic file exporter
-    """
-
-    try:
-        if not temp_file:
-            access_file = get_expression_file_path(token)
-            if not access_file:
-                err = Error(message="File not found", code=404)
-                return err, 404
-            response = flask.send_file(access_file, as_attachment=True)
-        # use tmp directory file ID's
-        else:
-            db_session = orm.get_session()
-            temp_file = orm.models.TempFile
-
-            try:
-                access_file = db_session.query(temp_file).get(token)
-            except exc.StatementError:
-                err = Error(message="Invalid file token: " + str(token), code=404)
-                return err, 404
-            except orm.ORMException as e:
-                err = _report_search_failed('file', e, expression_id=token)
-                return err, 500
-
-            if not access_file:
-                err = Error(message="File not found (link may have expired)", code=404)
-                return err, 404
-
-            file_path = access_file.__filepath__
-
-            if os.path.isfile(file_path):
-                if access_file.fileType == "json":
-                    with open(file_path, 'r') as json_file:
-                        data = json.load(json_file)
-                    response = flask.make_response(json.dumps(data))
-                else:
-                    response = flask.send_file(file_path, as_attachment=True)
-            else:
-                err = Error(message="File not found (link may have expired)", code=404)
-                return err, 404
-
-        response.direct_passthrough = False
-        return response
-
-    except Exception as e:
-        err = _report_search_failed('file', e)
-        return err, 404
 
 
 def convert_threshold_array(threshold_input, input_format=None):
