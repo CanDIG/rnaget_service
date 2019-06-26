@@ -7,20 +7,12 @@ import argparse
 import logging
 import pkg_resources
 import connexion
+import json
 
 from tornado.options import define
 from candig_rnaget.api.models import BasePath
 from candig_rnaget.expression.download import tmp_download, persistent_download
 import candig_rnaget.orm
-
-# Expose WSGI application
-app = connexion.FlaskApp(__name__, server='tornado')
-api_def = pkg_resources.resource_filename('candig_rnaget',
-                                          'api/rnaget.yaml')
-app.add_api(api_def, strict_validation=True, validate_responses=True)
-app.add_url_rule(BasePath+'/expressions/download/<file>', 'persistent', persistent_download)
-app.add_url_rule(BasePath+'/download/<token>', 'tmp', tmp_download)
-application = app.app
 
 
 def main(args=None):
@@ -63,6 +55,30 @@ def main(args=None):
 
     app.run(host=args.host, port=args.port)
 
+
+def configure_app():
+    app = connexion.FlaskApp(__name__, server='tornado')
+    api_def = pkg_resources.resource_filename('candig_rnaget',
+                                              'api/rnaget.yaml')
+    app.add_api(api_def, strict_validation=True, validate_responses=True)
+    app.add_url_rule(BasePath + '/expressions/download/<file>', 'persistent', persistent_download)
+    app.add_url_rule(BasePath + '/download/<token>', 'tmp', tmp_download)
+
+    @app.app.after_request
+    def rewrite_bad_request(response):
+        if response.status_code == 400 and response.data.decode('utf-8').find('"title":') is not None:
+            original = json.loads(response.data.decode('utf-8'))
+            response.data = json.dumps({'code': 400, 'message': original["detail"]})
+            response.headers['Content-Type'] = 'application/json'
+        return response
+
+    return app
+
+
+app = configure_app()
+
+# Expose WSGI application
+application = app.app
 
 if __name__ == "__main__":
     main()
