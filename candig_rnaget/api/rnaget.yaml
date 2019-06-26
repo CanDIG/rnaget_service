@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   title: RNA Seq API POC
-  version: "0.9.3"
+  version: "0.9.3b"
 basePath: /rnaget
 consumes:
   - application/json
@@ -478,7 +478,7 @@ paths:
       - name: format
         in: query
         description: one of `h5` or `loom` or `json`
-        x-example: loom
+        x-example: h5
         required: true
         type: string
       responses:
@@ -537,9 +537,9 @@ paths:
       - application/xml
       - application/json
       parameters:
-      - name: Accept
+      - name: type
         in: query
-        description: only `application/vnd.ga4gh.rnaget.v1.0.0+json` supported for now
+        description: one of `feature` or `sample` reflecting which axis to request filters for.  If blank, both will be returned
         required: false
         type: string
       responses:
@@ -548,7 +548,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/expressionSearchFilter'
+              $ref: '#/definitions/searchFilter'
         "400":
           description: Error
         "403":
@@ -667,7 +667,7 @@ paths:
       - name: version
         in: path
         description: release version
-        x-example: 0.9.3
+        x-example: 0.9.3b
         required: true
         type: string
       responses:
@@ -783,6 +783,7 @@ paths:
         type: string
       produces:
         - application/vnd.loom
+        - application/json
       responses:
 #        "200":
 #          description: successful operation
@@ -918,6 +919,8 @@ definitions:
         type: string
       description:
         type: string
+      created:
+        type: string
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
@@ -950,34 +953,13 @@ definitions:
         type: array
         items:
           type: string
+      created:
+        type: string
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: study
-  expression:
-    type: object
-    description: Matrix of expression values.
-    properties:
-      version:
-        type: string
-      tags:
-        type: array
-        items:
-          type: string
-      id:
-        type: string
-        format: uuid
-      URL:
-        type: string
-      studyID:
-        type: string
-        format: uuid
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: expression
   expressionsearch:
     type: object
     description: Expression search query object
@@ -1025,27 +1007,12 @@ definitions:
     type: object
     description: parameter name to use for filter when searching
     properties:
-      version:
+      fieldType:
         type: string
       filter:
         type: string
       description:
         type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: filters
-  expressionSearchFilter:
-    type: object
-    description: parameter name to use for filter when searching
-    properties:
-      filterType:
-        type: string
-      filters:
-        type: array
-        items:
-          type: object
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
@@ -1080,6 +1047,10 @@ definitions:
         type: string
         format: uuid
       URL:
+        type: string
+      units:
+        type: string
+      created:
         type: string
     externalDocs:
       description: Find out more

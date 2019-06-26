@@ -2,7 +2,7 @@ import json
 import dredd_hooks as hooks
 
 UUID_EXAMPLE = "be2ba51c-8dfe-4619-b832-31c4a087a589"
-VERSION = "0.9.3"
+VERSION = "0.9.3b"
 RO_FIELDS = ["created", "id"]
 response_stash = {}
 

@@ -103,8 +103,8 @@ def get_project_by_id(projectId):
     except IdentifierFormatError as e:
         err = Error(
             message=str(e),
-            code=400)
-        return err, 400
+            code=404)
+        return err, 404
     except orm.ORMException as e:
         err = _report_search_failed('project', e, project_id=str(projectId))
         return err, 500
@@ -208,8 +208,8 @@ def get_study_by_id(studyId):
     except IdentifierFormatError as e:
         err = Error(
             message=str(e),
-            code=400)
-        return err, 400
+            code=404)
+        return err, 404
 
     except orm.ORMException as e:
         err = _report_search_failed('study', e, study_id=studyId)
@@ -284,10 +284,8 @@ def search_studies(tags=None, version=None, projectID=None):
             studies = studies.filter(study.parentProjectID == projectID)
 
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('project', e)
+        return [], 200
 
     except orm.ORMException as e:
         err = _report_search_failed('project', e)
@@ -337,8 +335,8 @@ def get_expression_by_id(expressionId):
     except IdentifierFormatError as e:
         err = Error(
             message=str(e),
-            code=400)
-        return err, 400
+            code=404)
+        return err, 404
     except orm.ORMException as e:
         err = _report_search_failed('file', e, expression_id=expressionId)
         return err, 500
@@ -434,8 +432,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
-            pass
-
+            expressions = filter_expression_format(expressions, format)
         else:
             responses = []
             try:
@@ -456,10 +453,8 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             return responses, 200
 
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('expression', e)
+        return [], 200
 
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
@@ -489,8 +484,7 @@ def post_search_expressions(expression_search):
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
-            pass
-
+            expressions = filter_expression_format(expressions, format)
         else:
             # H5 queries
             responses = []
@@ -512,10 +506,8 @@ def post_search_expressions(expression_search):
             return responses, 200
 
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('expression', e)
+        return [], 200
 
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
@@ -549,6 +541,17 @@ def filter_expression_data(version, tags, study_id, project_id):
         expressions = expressions.filter(expression.studyID.in_(study_list))
 
     return expressions
+
+
+def filter_expression_format(expressions, format):
+    """
+    Note: No file format conversion at this point
+    :param expression: list of orm expression objects
+    :param format: desired file format
+    :return: filtered orm of expression objects
+    """
+    expression = orm.models.File
+    return expressions.filter(expression.fileType == format)
 
 
 def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
@@ -609,7 +612,7 @@ def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExp
         logger().warning(struct_log(action=str(err)))
         return None
 
-    return generate_file_response(q, file_type, output_file_id, expr.studyID)
+    return generate_file_response(q, file_type, output_file_id, expr.studyID, expr.units)
 
 
 @apilog
@@ -622,22 +625,23 @@ def get_expressions():
 
 
 @apilog
-def search_expression_filters(Accept=None):
+def search_expression_filters(type=None):
     """
 
-    :param Accept: content type to return
+    :param type: type of filter to return
     :return: filters for expression searches
     """
     filter_file = pkg_resources.resource_filename('candig_rnaget', 'orm/filters_expression.json')
 
-    if Accept and Accept != "application/vnd.ga4gh.rnaget.v1.0.0+json":
-        err = Error(message="Not Acceptable", code=406)
-        return err, 406
-
     with open(filter_file, 'r') as ef:
         expression_filters = json.load(ef)
 
-    response = expression_filters
+    if type:
+        response = expression_filters.get(type, [])
+    else:
+        response = []
+        for filter_key in expression_filters:
+            response += expression_filters[filter_key]
 
     return response, 200
 
@@ -730,8 +734,8 @@ def get_file(fileID):
     except IdentifierFormatError as e:
         err = Error(
             message=str(e),
-            code=400)
-        return err, 400
+            code=404)
+        return err, 404
     except orm.ORMException as e:
         err = _report_search_failed('file', e, file_id=fileID)
         return err, 500
@@ -770,10 +774,8 @@ def search_files(tags=None, projectID=None, studyID=None, fileType=None):
         if fileType:
             files = files.filter(file.fileType == fileType)
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('file', e)
+        return [], 200
     except orm.ORMException as e:
         err = _report_search_failed('file', e)
         return err, 500
@@ -833,7 +835,7 @@ def search_continuous(format):
     return err, 501
 
 
-def generate_file_response(results, file_type, file_id, study_id):
+def generate_file_response(results, file_type, file_id, study_id, units):
     base_url = app.config.get('BASE_DL_URL') + BasePath
     tmp_dir = app.config.get('TMP_DIRECTORY')
 
@@ -862,6 +864,7 @@ def generate_file_response(results, file_type, file_id, study_id):
         'studyID': study_id,
         'fileType': file_type,
         'version': Version,
+        'units': units,
         'created': datetime.datetime.utcnow(),
         '__filepath__': tmp_file_path
     }
