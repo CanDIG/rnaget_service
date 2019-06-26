@@ -97,6 +97,7 @@ class File(Base):
     fileType = Column(String(10))
     studyID = Column(GUID(), ForeignKey('studies.id'))
     URL = Column(String(100), unique=True)
+    units = Column(String(10))
     created = Column(DateTime())
     __table_args__ = ()
 
@@ -113,5 +114,6 @@ class TempFile(Base):
     fileType = Column(String(10))
     studyID = Column(GUID(), ForeignKey('studies.id'))
     URL = Column(String(100))
+    units = Column(String(10))
     created = Column(DateTime())
     __table_args__ = ()

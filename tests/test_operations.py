@@ -160,6 +160,11 @@ def test_search_studies(test_client):
         assert(result[0]['id'] == uuid.UUID(sample_study['id']))
         assert(code == 200)
 
+        # invalid project ID should be 200 still but give no results
+        result, code = operations.search_studies(projectID='9999999999')
+        assert(len(result) == 0)
+        assert(code == 200)
+
 
 def test_search_study_filters(test_client):
     """
@@ -657,13 +662,20 @@ def test_expression_filters(test_client):
 
     with context:
         # get expression filters (200)
-        result, code = operations.search_expression_filters()
-        assert(len(result) > 0)
+        result_all, code = operations.search_expression_filters()
+        assert(len(result_all) > 0)
         assert(code == 200)
 
-        # bad Accept parameter (406)
-        result, code = operations.search_expression_filters(Accept="yaml")
-        assert(code == 406)
+        # get subset of filters (200)
+        result_subset, code = operations.search_expression_filters(type="feature")
+        assert(len(result_subset) > 0)
+        assert(len(result_all) > len(result_subset))
+        assert(code == 200)
+
+        # bad Accept parameter (200)
+        result, code = operations.search_expression_filters(type="patient")
+        assert(len(result) == 0)
+        assert(code == 200)
 
 
 def test_get_file(test_client):
