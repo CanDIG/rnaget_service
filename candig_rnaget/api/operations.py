@@ -454,10 +454,8 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
             return responses, 200
 
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('expression', e)
+        return [], 200
 
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
@@ -510,10 +508,8 @@ def post_search_expressions(expression_search):
             return responses, 200
 
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('expression', e)
+        return [], 200
 
     except orm.ORMException as e:
         err = _report_search_failed('expression', e)
@@ -729,8 +725,8 @@ def get_file(fileID):
     except IdentifierFormatError as e:
         err = Error(
             message=str(e),
-            code=400)
-        return err, 400
+            code=404)
+        return err, 404
     except orm.ORMException as e:
         err = _report_search_failed('file', e, file_id=fileID)
         return err, 500
@@ -769,10 +765,8 @@ def search_files(tags=None, projectID=None, studyID=None, fileType=None):
         if fileType:
             files = files.filter(file.fileType == fileType)
     except IdentifierFormatError as e:
-        err = Error(
-            message=str(e),
-            code=400)
-        return err, 400
+        _report_search_failed('file', e)
+        return [], 200
     except orm.ORMException as e:
         err = _report_search_failed('file', e)
         return err, 500

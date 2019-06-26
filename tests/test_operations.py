@@ -75,9 +75,9 @@ def test_get_project_by_id(test_client):
         assert(result['id'] == uuid.UUID(sample_project['id']))
         assert(code == 200)
 
-        # get id (400)
+        # get id (404)
         result, code = operations.get_project_by_id("not a uuid")
-        assert(code == 400)
+        assert(code == 404)
 
         # get id (404)
         result, code = operations.get_project_by_id(str(uuid.uuid1()))
@@ -131,7 +131,7 @@ def test_get_study_by_id(test_client):
 
         # get id (400)
         result, code = operations.get_study_by_id("not a uuid")
-        assert(code == 400)
+        assert(code == 404)
 
         # get id (404)
         result, code = operations.get_study_by_id(str(uuid.uuid1()))
@@ -193,9 +193,9 @@ def test_get_expression_by_id(test_client):
         assert(result['id'] == uuid.UUID(sample_expression['id']))
         assert(code == 200)
 
-        # get id (400)
+        # get id (404)
         result, code = operations.get_expression_by_id("not a uuid")
-        assert(code == 400)
+        assert(code == 404)
 
         # get id (404)
         result, code = operations.get_expression_by_id(str(uuid.uuid1()))
@@ -276,7 +276,7 @@ def test_get_search_expressions_filter_error(test_client):
     with context:
         # invalid UUID search
         result, code = operations.get_search_expressions(projectID="not a uuid")
-        assert(code == 400)
+        assert(code == 200)
 
 
 def test_get_expression_formats(test_client):
@@ -651,7 +651,8 @@ def test_post_search_expressions_error_uuid(test_client):
                 'studyID': 'not a uuid',
             }
         )
-        assert (code == 400)
+        assert(len(result) == 0)
+        assert (code == 200)
 
 
 def test_expression_filters(test_client):
@@ -692,7 +693,7 @@ def test_get_file(test_client):
 
         # get id (400)
         result, code = operations.get_file("not a uuid")
-        assert(code == 400)
+        assert(code == 404)
 
         # get id (404)
         result, code = operations.get_file(str(uuid.uuid1()))
@@ -743,9 +744,9 @@ def test_search_files(test_client):
         assert(result[0]['id'] == uuid.UUID(sample_expression['id']))
         assert(code == 200)
 
-        # search invalid UUID (400)
+        # search invalid UUID (200)
         result, code = operations.search_files(studyID="not a uuid")
-        assert(code == 400)
+        assert(code == 200)
 
         # search by file type (200)
         result, code = operations.search_files(fileType='h5')
@@ -814,6 +815,7 @@ def load_expression(study_id):
         'version': Version,
         'tags': ['expressions', 'test'],
         "fileType": "h5",
+        "units": "FPKM"
     }
 
     operations.post_expression(test_expression)
