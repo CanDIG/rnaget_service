@@ -432,8 +432,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
-            pass
-
+            expressions = filter_expression_format(expressions, format)
         else:
             responses = []
             try:
@@ -485,8 +484,7 @@ def post_search_expressions(expression_search):
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
         if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
-            pass
-
+            expressions = filter_expression_format(expressions, format)
         else:
             # H5 queries
             responses = []
@@ -543,6 +541,17 @@ def filter_expression_data(version, tags, study_id, project_id):
         expressions = expressions.filter(expression.studyID.in_(study_list))
 
     return expressions
+
+
+def filter_expression_format(expressions, format):
+    """
+    Note: No file format conversion at this point
+    :param expression: list of orm expression objects
+    :param format: desired file format
+    :return: filtered orm of expression objects
+    """
+    expression = orm.models.File
+    return expressions.filter(expression.fileType == format)
 
 
 def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,

@@ -478,7 +478,7 @@ paths:
       - name: format
         in: query
         description: one of `h5` or `loom` or `json`
-        x-example: loom
+        x-example: h5
         required: true
         type: string
       responses:
