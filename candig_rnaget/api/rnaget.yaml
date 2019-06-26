@@ -667,7 +667,7 @@ paths:
       - name: version
         in: path
         description: release version
-        x-example: 0.9.3
+        x-example: 0.9.3b
         required: true
         type: string
       responses:
