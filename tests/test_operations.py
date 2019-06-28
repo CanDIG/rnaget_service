@@ -51,6 +51,18 @@ def test_post_project_exists(test_client):
         assert(code == 405)
 
 
+def test_post_project_conversion_error(test_client):
+    """
+    post_project
+    """
+    context = test_client[3]
+
+    with context:
+        # get id (200)
+        result, code = operations.post_project({'invalidField':123})
+        assert(code == 400)
+
+
 def test_post_project_orm_error(test_client):
     """
     post_project
@@ -117,6 +129,42 @@ def test_search_project_filters(test_client):
             assert(filter_obj["filter"] in valid_filters)
 
 
+def test_post_study_exists(test_client):
+    """
+    post_project
+    """
+    _, sample_study, _, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.post_study({'id': sample_study['id'], 'name': 'main_test_study'})
+        assert(code == 405)
+
+
+def test_post_study_conversion_error(test_client):
+    """
+    post_project
+    """
+    context = test_client[3]
+
+    with context:
+        # get id (200)
+        result, code = operations.post_study({'invalidField':123})
+        assert(code == 400)
+
+
+def test_post_study_orm_error(test_client):
+    """
+    post_project
+    """
+    context = test_client[3]
+
+    with context:
+        # get id (200)
+        result, code = operations.post_study({'id': 12345678910, 'name': 1})
+        assert(code == 500)
+
+
 def test_get_study_by_id(test_client):
     """
     get_study_by_id
@@ -179,6 +227,72 @@ def test_search_study_filters(test_client):
         assert(code == 200)
         for filter_obj in result:
             assert(filter_obj["filter"] in valid_filters)
+
+
+def test_post_expression_exists(test_client):
+    """
+    post_expression
+    """
+    _, _, sample_expression, context = test_client
+    del sample_expression['created']
+
+    with context:
+        # get id (200)
+        result, code = operations.post_expression(sample_expression)
+        assert(code == 405)
+
+
+def test_post_expression_conversion_error(test_client):
+    """
+    post_expression
+    """
+    _, _, sample_expression, context = test_client
+    del sample_expression['created']
+
+    with context:
+        # get id (200)
+        result, code = operations.post_expression({
+            'invalidField': 123,
+            '__filepath__': sample_expression['__filepath__']
+        })
+        assert(code == 400)
+
+
+def test_post_expression_orm_error(test_client):
+    """
+    post_expression
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.post_expression({
+            'id': 12345678910,
+            'units': 1,
+            '__filepath__': sample_expression['__filepath__']
+        })
+        assert(code == 500)
+
+
+def test_post_expression_filepath_error(test_client):
+    """
+    post_expression
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        valid_path = sample_expression['__filepath__']
+
+        # tamper with file path
+        del sample_expression['__filepath__']
+        result, code = operations.post_expression(sample_expression)
+        assert (code == 400)
+
+        sample_expression['__filepath__'] = 'bad_file_path'
+        result, code = operations.post_expression(sample_expression)
+        assert (code == 400)
+
+        sample_expression['__filepath__'] = valid_path
 
 
 def test_get_expression_by_id(test_client):
@@ -717,6 +831,26 @@ def test_file_download(test_client):
             assert(response.status_code == 200)
 
 
+def test_file_download_error_response(test_client):
+    """
+    download_file
+    """
+    context = test_client[3]
+
+    with context:
+        # bad file name
+        result = persistent_download("not there")
+        assert(result.status_code == 404)
+
+        # bad file token
+        result = tmp_download("bad_file_token")
+        assert(result.status_code == 400)
+
+        # expired file
+        result = tmp_download(str(uuid.uuid1()))
+        assert(result.status_code == 404)
+
+
 def test_search_files(test_client):
     """
     search_files
@@ -781,6 +915,26 @@ def test_changelog(test_client):
         result, code = operations.get_change_log(version=Version)
         assert(result['version'] == Version)
         assert(code == 200)
+
+        # get_changelog (404)
+        result, code = operations.get_change_log(version='2.0')
+        assert(code == 404)
+
+
+def test_post_changelog_errors(test_client):
+    """
+    post_change_log
+    """
+    context = test_client[3]
+
+    with context:
+        # post log of version that already exists
+        result, code = operations.post_change_log({'version': Version, 'log': 'already exists'})
+        assert(code == 405)
+
+        # conversion error
+        result, code = operations.post_project({'invalidField':123})
+        assert(code == 400)
 
 
 def test_continuous(test_client):

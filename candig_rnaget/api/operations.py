@@ -133,7 +133,7 @@ def post_project(project_record):
 
     try:
         orm_project = orm.models.Project(**project_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('project', e, **project_record)
         return err, 400
 
@@ -239,7 +239,7 @@ def post_study(study_record):
 
     try:
         orm_study = orm.models.Study(**study_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('study', e, **study_record)
         return err, 400
 
@@ -251,6 +251,7 @@ def post_study(study_record):
         err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('study', e, **study_record)
         return err, 500
 
@@ -378,7 +379,7 @@ def post_expression(expression_record):
 
     try:
         orm_expression = orm.models.File(**expression_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('file', e, **expression_record)
         return err, 400
 
@@ -390,6 +391,7 @@ def post_expression(expression_record):
         err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('expression', e, **expression_record)
         return err, 500
 
@@ -673,7 +675,7 @@ def post_change_log(change_log_record):
 
     try:
         orm_changelog = orm.models.ChangeLog(**change_log_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('changelog', e, **change_log_record)
         return err, 400
 
@@ -947,7 +949,7 @@ def create_tmp_file_record(file_record):
 
     try:
         orm_expression = orm.models.TempFile(**file_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('file', e, **file_record)
         return err, 400
 
