@@ -987,9 +987,13 @@ definitions:
         items:
           type: string
       minExpression:
-        type: object
+        type: array
+        items:
+          type: object
       maxExpression:
-        type: object
+        type: array
+        items:
+          type: object
       featureThresholdLabel:
         type: string
       format:
