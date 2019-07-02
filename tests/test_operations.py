@@ -252,7 +252,7 @@ def test_post_expression_conversion_error(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.post_expression({
+        _, code = operations.post_expression({
             'invalidField': 123,
             '__filepath__': sample_expression['__filepath__']
         })
@@ -267,7 +267,7 @@ def test_post_expression_orm_error(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.post_expression({
+        _, code = operations.post_expression({
             'id': 12345678910,
             'units': 1,
             '__filepath__': sample_expression['__filepath__']
@@ -508,7 +508,7 @@ def test_get_search_expressions_slice_by_sample_h5(test_client):
     with context:
         # bad sample id (200)
         result, code = operations.get_search_expressions(sampleID="blah")
-        assert len(result) == 0
+        assert not result
         assert code == 200
 
         # valid sample id (200)
@@ -961,7 +961,7 @@ def test_get_file_not_found(test_client):
     context = test_client[3]
 
     with context:
-        result, code = operations.get_expression_file_path("does.notexist")
+        _, code = operations.get_expression_file_path("does.notexist")
         assert code == 404
 
 
@@ -987,7 +987,7 @@ def test_create_tmp_file_conversion_error(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.create_tmp_file_record({
+        _, code = operations.create_tmp_file_record({
             'invalidField': 123,
             '__filepath__': sample_expression['__filepath__']
         })
@@ -1002,7 +1002,7 @@ def test_create_tmp_file_orm_error(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.create_tmp_file_record({
+        _, code = operations.create_tmp_file_record({
             'id': 12345678910,
             'units': 1,
             '__filepath__': sample_expression['__filepath__']
