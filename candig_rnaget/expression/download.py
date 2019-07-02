@@ -40,7 +40,7 @@ def download_file(token, temp_file=False):
     try:
         if not temp_file:
             access_file = get_expression_file_path(token)
-            if not access_file:
+            if isinstance(access_file, tuple):
                 return download_error("File not found", 404)
             mimetype = get_mimetype(token.split(".")[-1])
             response = flask.send_file(access_file, as_attachment=True, mimetype=mimetype)

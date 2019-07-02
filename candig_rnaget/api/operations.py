@@ -105,9 +105,6 @@ def get_project_by_id(projectId):
             message=str(e),
             code=404)
         return err, 404
-    except orm.ORMException as e:
-        err = _report_search_failed('project', e, project_id=str(projectId))
-        return err, 500
 
     if not specified_project:
         err = Error(message="Project not found: "+str(projectId), code=404)
@@ -133,7 +130,7 @@ def post_project(project_record):
 
     try:
         orm_project = orm.models.Project(**project_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('project', e, **project_record)
         return err, 400
 
@@ -211,10 +208,6 @@ def get_study_by_id(studyId):
             code=404)
         return err, 404
 
-    except orm.ORMException as e:
-        err = _report_search_failed('study', e, study_id=studyId)
-        return err, 500
-
     if not specified_study:
         err = Error(message="Study not found: " + studyId, code=404)
         return err, 404
@@ -239,7 +232,7 @@ def post_study(study_record):
 
     try:
         orm_study = orm.models.Study(**study_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('study', e, **study_record)
         return err, 400
 
@@ -251,6 +244,7 @@ def post_study(study_record):
         err = _report_object_exists('study: ' + study_record['id'], **study_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('study', e, **study_record)
         return err, 500
 
@@ -337,9 +331,6 @@ def get_expression_by_id(expressionId):
             message=str(e),
             code=404)
         return err, 404
-    except orm.ORMException as e:
-        err = _report_search_failed('file', e, expression_id=expressionId)
-        return err, 500
 
     if not expr_matrix:
         err = Error(message="Expression matrix not found: " + expressionId, code=404)
@@ -378,7 +369,7 @@ def post_expression(expression_record):
 
     try:
         orm_expression = orm.models.File(**expression_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('file', e, **expression_record)
         return err, 400
 
@@ -390,6 +381,7 @@ def post_expression(expression_record):
         err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
         return err, 405
     except orm.ORMException as e:
+        db_session.rollback()
         err = _report_write_error('expression', e, **expression_record)
         return err, 500
 
@@ -673,7 +665,7 @@ def post_change_log(change_log_record):
 
     try:
         orm_changelog = orm.models.ChangeLog(**change_log_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('changelog', e, **change_log_record)
         return err, 400
 
@@ -933,10 +925,6 @@ def get_expression_file_path(file):
 
     except orm.ORMException as e:
         err = _report_search_failed('file', e, URL=file_url)
-        return err, 500
-
-    if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + file, code=404)
         return err, 404
 
     return expr_matrix.__filepath__
@@ -947,7 +935,7 @@ def create_tmp_file_record(file_record):
 
     try:
         orm_expression = orm.models.TempFile(**file_record)
-    except orm.ORMException as e:
+    except TypeError as e:
         err = _report_conversion_error('file', e, **file_record)
         return err, 400
 
