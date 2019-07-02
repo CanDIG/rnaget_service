@@ -105,9 +105,6 @@ def get_project_by_id(projectId):
             message=str(e),
             code=404)
         return err, 404
-    except orm.ORMException as e:
-        err = _report_search_failed('project', e, project_id=str(projectId))
-        return err, 500
 
     if not specified_project:
         err = Error(message="Project not found: "+str(projectId), code=404)
@@ -210,10 +207,6 @@ def get_study_by_id(studyId):
             message=str(e),
             code=404)
         return err, 404
-
-    except orm.ORMException as e:
-        err = _report_search_failed('study', e, study_id=studyId)
-        return err, 500
 
     if not specified_study:
         err = Error(message="Study not found: " + studyId, code=404)
@@ -338,9 +331,6 @@ def get_expression_by_id(expressionId):
             message=str(e),
             code=404)
         return err, 404
-    except orm.ORMException as e:
-        err = _report_search_failed('file', e, expression_id=expressionId)
-        return err, 500
 
     if not expr_matrix:
         err = Error(message="Expression matrix not found: " + expressionId, code=404)
@@ -935,10 +925,6 @@ def get_expression_file_path(file):
 
     except orm.ORMException as e:
         err = _report_search_failed('file', e, URL=file_url)
-        return err, 500
-
-    if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + file, code=404)
         return err, 404
 
     return expr_matrix.__filepath__

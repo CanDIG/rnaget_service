@@ -12,6 +12,7 @@ import os
 from candig_rnaget import orm
 from candig_rnaget.app import app
 from candig_rnaget.api import operations
+from candig_rnaget.auth import auth_key
 from candig_rnaget.api.models import BasePath, Version
 from candig_rnaget.expression.download import tmp_download, persistent_download
 
@@ -953,6 +954,78 @@ def test_continuous(test_client):
         result, code = operations.search_continuous('loom')
         assert(code == 501)
 
+
+def test_get_file_not_found(test_client):
+    """
+    get_expression_file_path
+    """
+    context = test_client[3]
+
+    with context:
+        result, code = operations.get_expression_file_path("does.notexist")
+        assert(code == 404)
+
+
+def test_create_tmp_file_exists(test_client):
+    """
+    create_tmp_file_record
+    """
+    context = test_client[3]
+    temp_id = uuid.uuid1().hex
+
+    with context:
+        # get id (200)
+        operations.create_tmp_file_record({'id': temp_id, '__filepath__': 'temp/path'})
+        result, code = operations.create_tmp_file_record({'id': temp_id, '__filepath__': 'temp/path'})
+        assert(code == 405)
+
+
+def test_create_tmp_file_conversion_error(test_client):
+    """
+    create_tmp_file_record
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.create_tmp_file_record({
+            'invalidField': 123,
+            '__filepath__': sample_expression['__filepath__']
+        })
+        assert(code == 400)
+
+
+def test_create_tmp_file_orm_error(test_client):
+    """
+    create_tmp_file_record
+    """
+    _, _, sample_expression, context = test_client
+
+    with context:
+        # get id (200)
+        result, code = operations.create_tmp_file_record({
+            'id': 12345678910,
+            'units': 1,
+            '__filepath__': sample_expression['__filepath__']
+        })
+        assert(code == 500)
+
+
+def test_authkey_gateway(test_client):
+    """
+    auth.__init__.py
+    """
+    context = test_client[3]
+
+    with context:
+        app.app.config['AUTH_METHOD'] = 'GATEWAY'
+        with app.app.test_request_context():
+            result = auth_key(api_key='test')
+            assert(result is None)
+        del app.app.config['AUTH_METHOD']
+        with app.app.test_request_context():
+            result = auth_key(api_key='test')
+            assert(result == {})
 
 def load_expression(study_id):
     expressionid = uuid.uuid1().hex
