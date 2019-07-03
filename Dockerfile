@@ -13,4 +13,6 @@ EXPOSE 3000
 # provide some explicit defaults if no arguments are given
 ENTRYPOINT [ "candig_rnaget", "--port", "3000"]
 CMD [ "--logfile", "log/rnaget.log",\
-      "--database", "data/rnaget.sqlite" ]
+      "--database", "data/rnaget.sqlite",\
+      "--tmpdata", "data/tmp/" ]
+

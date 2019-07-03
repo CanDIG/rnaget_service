@@ -11,7 +11,7 @@ From: python:3.7-slim-stretch
     python3 setup.py install
 
 %startscript
-    exec candig_rnaget --port 3000 --logfile log/rnaget.log --database data/rnaget.sqlite
+    exec candig_rnaget --port 3000 --logfile log/rnaget.log --database data/rnaget.sqlite --tmpdata data/tmp/
 
 %labels
     Author CanDIG Project
