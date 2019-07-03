@@ -6,10 +6,7 @@ From: python:3.7-slim-stretch
 
 %post
     export HOME="/app"
-    ls /usr/local/lib
-    echo export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.7/site-packages
     cd /app
-    apt update && apt install -y libhdf5-dev
     pip3 install --no-cache-dir -r requirements.txt
     python3 setup.py install
 
