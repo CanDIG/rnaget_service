@@ -16,7 +16,7 @@ from sqlalchemy import exc
 from candig_rnaget import orm
 from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
-from candig_rnaget.api.models import Error, BasePath, Version
+from candig_rnaget.api.models import BasePath, Version
 from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
 from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
 from candig_rnaget.expression.rnaget_query import SUPPORTED_OUTPUT_FORMATS
@@ -37,7 +37,7 @@ def _report_search_failed(typename, exception, **kwargs):
     report = typename + ' search failed'
     message = 'Internal error searching for '+typename+'s'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    return Error(message=message, code=500)
+    return dict(message=message, code=500)
 
 
 def _report_object_exists(typename, **kwargs):
@@ -50,7 +50,7 @@ def _report_object_exists(typename, **kwargs):
     """
     report = typename + 'already exists'
     logger().warning(struct_log(action=report, **kwargs))
-    return Error(message=report, code=405)
+    return dict(message=report, code=405)
 
 
 def _report_conversion_error(typename, exception, **kwargs):
@@ -66,7 +66,7 @@ def _report_conversion_error(typename, exception, **kwargs):
     report = 'Could not convert '+typename+' to ORM model'
     message = typename + ': failed validation - could not convert to internal representation'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    return Error(message=message, code=400)
+    return dict(message=message, code=400)
 
 
 def _report_write_error(typename, exception, **kwargs):
@@ -82,7 +82,7 @@ def _report_write_error(typename, exception, **kwargs):
     report = 'Internal error writing '+typename+' to DB'
     message = typename + ': internal error saving ORM object to DB'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    err = Error(message=message, code=500)
+    err = dict(message=message, code=500)
     return err
 
 
@@ -101,13 +101,13 @@ def get_project_by_id(projectId):
         specified_project = db_session.query(project)\
             .get(projectId)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not specified_project:
-        err = Error(message="Project not found: "+str(projectId), code=404)
+        err = dict(message="Project not found: "+str(projectId), code=404)
         return err, 404
 
     return orm.dump(specified_project), 200
@@ -203,13 +203,13 @@ def get_study_by_id(studyId):
             .get(studyId)
 
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not specified_study:
-        err = Error(message="Study not found: " + studyId, code=404)
+        err = dict(message="Study not found: " + studyId, code=404)
         return err, 404
 
     return orm.dump(specified_study), 200
@@ -327,13 +327,13 @@ def get_expression_by_id(expressionId):
         validate_uuid_string('id', expressionId)
         expr_matrix = db_session.query(expression).get(expressionId)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + expressionId, code=404)
+        err = dict(message="Expression matrix not found: " + expressionId, code=404)
         return err, 404
 
     return orm.dump(expr_matrix), 200
@@ -346,10 +346,10 @@ def post_expression(expression_record):
     if expression_record.get('__filepath__'):
         file_path = expression_record['__filepath__']
         if not os.path.isfile(file_path):
-            err = Error(message="Invalid file path: " + file_path, code=400)
+            err = dict(message="Invalid file path: " + file_path, code=400)
             return err, 400
     else:
-        err = Error(message="An absolute __filepath__ is required", code=400)
+        err = dict(message="An absolute __filepath__ is required", code=400)
         return err, 400
 
     if not expression_record.get('id'):
@@ -437,7 +437,7 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
                         responses.append(file_response)
 
             except (ThresholdValueError, UnsupportedOutputError) as e:
-                err = Error(
+                err = dict(
                     message=str(e),
                     code=400)
                 return err, 400
@@ -490,7 +490,7 @@ def post_search_expressions(expression_search):
                         responses.append(file_response)
 
             except (ThresholdValueError, UnsupportedOutputError) as e:
-                err = Error(
+                err = dict(
                     message=str(e),
                     code=400)
                 return err, 400
@@ -704,7 +704,7 @@ def get_change_log(version):
         return err, 500
 
     if not log:
-        err = Error(message="Change log not found", code=404)
+        err = dict(message="Change log not found", code=404)
         return err, 404
 
     return orm.dump(log), 200
@@ -724,7 +724,7 @@ def get_file(fileID):
         validate_uuid_string('fileID', fileID)
         file_q = db_session.query(file).get(fileID)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
@@ -733,7 +733,7 @@ def get_file(fileID):
         return err, 500
 
     if not file_q:
-        err = Error(message="File not found: " + fileID, code=404)
+        err = dict(message="File not found: " + fileID, code=404)
         return err, 404
 
     return orm.dump(file_q), 200
@@ -796,7 +796,7 @@ def get_continuous_by_id(continuousId):
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
@@ -808,7 +808,7 @@ def get_continuous_formats():
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
@@ -820,7 +820,7 @@ def search_continuous(format):
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
