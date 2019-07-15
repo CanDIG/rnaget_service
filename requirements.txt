@@ -6,7 +6,7 @@ decorator==4.3.2
 openapi-core==0.11.0
 pyyaml>=4.2b1
 h5py==2.9.0
-swagger-ui-bundle==0.0.3
+swagger-ui-bundle==0.0.5
 pandas==0.24.2
 loompy==2.0.17
 

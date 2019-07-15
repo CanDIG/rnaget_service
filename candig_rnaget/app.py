@@ -57,7 +57,8 @@ def main(args=None):
 
 
 def configure_app():
-    app = connexion.FlaskApp(__name__, server='tornado')
+    app = connexion.FlaskApp(__name__, server='tornado', options={"swagger_url": "/"})
+    app.app.url_map.strict_slashes = False
     api_def = pkg_resources.resource_filename('candig_rnaget',
                                               'api/rnaget.yaml')
     app.add_api(api_def, strict_validation=True, validate_responses=True)
