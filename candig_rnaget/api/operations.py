@@ -10,6 +10,7 @@ import os
 import json
 import pkg_resources
 import loompy
+import hashlib
 
 from sqlalchemy import or_
 from sqlalchemy import exc
@@ -86,6 +87,20 @@ def _report_write_error(typename, exception, **kwargs):
     return err
 
 
+def md5(file_path):
+    """
+    Generate md5checksum for an input file
+
+    :param file_path: absolute path to the input file
+    :return: hex digest of the md5 hash
+    """
+    m_hash = hashlib.md5()
+    with open(file_path, "rb") as f:
+        f_bytes = f.read()
+        m_hash.update(f_bytes)
+    return m_hash.hexdigest()
+
+
 @apilog
 def get_project_by_id(projectId):
     """
@@ -114,24 +129,24 @@ def get_project_by_id(projectId):
 
 
 @apilog
-def post_project(project_record):
+def post_project(body):
     db_session = orm.get_session()
 
-    if not project_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        project_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = project_record['id']
+        iid = body['id']
 
-    if not project_record.get('version'):
-        project_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    project_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_project = orm.models.Project(**project_record)
+        orm_project = orm.models.Project(**body)
     except TypeError as e:
-        err = _report_conversion_error('project', e, **project_record)
+        err = _report_conversion_error('project', e, **body)
         return err, 400
 
     try:
@@ -139,17 +154,17 @@ def post_project(project_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('project: '+project_record['id'], **project_record)
+        err = _report_object_exists('project: ' + body['id'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('project', e, **project_record)
+        err = _report_write_error('project', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_project', status='created',
-                             project_id=str(iid), **project_record))
+                             project_id=str(iid), **body))
 
-    return project_record, 201, {'Location': BasePath + '/projects/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/projects/' + str(iid)}
 
 
 @apilog
@@ -216,24 +231,24 @@ def get_study_by_id(studyId):
 
 
 @apilog
-def post_study(study_record):
+def post_study(body):
     db_session = orm.get_session()
 
-    if not study_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        study_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = study_record['id']
+        iid = body['id']
 
-    if not study_record.get('version'):
-        study_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    study_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_study = orm.models.Study(**study_record)
+        orm_study = orm.models.Study(**body)
     except TypeError as e:
-        err = _report_conversion_error('study', e, **study_record)
+        err = _report_conversion_error('study', e, **body)
         return err, 400
 
     try:
@@ -241,17 +256,17 @@ def post_study(study_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('study: ' + study_record['id'], **study_record)
+        err = _report_object_exists('study: ' + body['id'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('study', e, **study_record)
+        err = _report_write_error('study', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_study', status='created',
-                             project_id=str(iid), **study_record))
+                             project_id=str(iid), **body))
 
-    return study_record, 201, {'Location': BasePath + '/studies/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/studies/' + str(iid)}
 
 
 @apilog
@@ -340,37 +355,38 @@ def get_expression_by_id(expressionId):
 
 
 @apilog
-def post_expression(expression_record):
+def post_expression(body):
     db_session = orm.get_session()
 
-    if expression_record.get('__filepath__'):
-        file_path = expression_record['__filepath__']
+    if body.get('__filepath__'):
+        file_path = body['__filepath__']
         if not os.path.isfile(file_path):
             err = dict(message="Invalid file path: " + file_path, code=400)
             return err, 400
+        body['md5'] = md5(file_path)
     else:
         err = dict(message="An absolute __filepath__ is required", code=400)
         return err, 400
 
-    if not expression_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        expression_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = expression_record['id']
+        iid = body['id']
 
-    if not expression_record.get('version'):
-        expression_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    if not expression_record.get('URL'):
+    if not body.get('URL'):
         base_url = app.config.get('BASE_DL_URL') + BasePath
-        expression_record['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
+        body['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
 
-    expression_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_expression = orm.models.File(**expression_record)
+        orm_expression = orm.models.File(**body)
     except TypeError as e:
-        err = _report_conversion_error('file', e, **expression_record)
+        err = _report_conversion_error('file', e, **body)
         return err, 400
 
     try:
@@ -378,17 +394,17 @@ def post_expression(expression_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
+        err = _report_object_exists('expression: ' + body['URL'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('expression', e, **expression_record)
+        err = _report_write_error('expression', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_expression', status='created',
-                             expression_id=str(iid), **expression_record))
+                             expression_id=str(iid), **body))
 
-    return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/expressions/' + str(iid)}
 
 
 @apilog
@@ -456,21 +472,21 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
 
 @apilog
-def post_search_expressions(expression_search):
+def post_search_expressions(body):
 
     # Parse search object
-    version = expression_search.get("version")
-    tags = expression_search.get("tags")
-    studyID = expression_search.get("studyID")
-    projectID = expression_search.get("projectID")
-    sampleID = expression_search.get("sampleID")
-    featureIDList = expression_search.get("featureIDList")
-    featureNameList = expression_search.get("featureNameList")
-    maxExpression = expression_search.get("maxExpression")
-    minExpression = expression_search.get("minExpression")
+    version = body.get("version")
+    tags = body.get("tags")
+    studyID = body.get("studyID")
+    projectID = body.get("projectID")
+    sampleID = body.get("sampleID")
+    featureIDList = body.get("featureIDList")
+    featureNameList = body.get("featureNameList")
+    maxExpression = body.get("maxExpression")
+    minExpression = body.get("minExpression")
 
     # If not supplied, set defaults
-    file_type = expression_search.get("format", "h5")
+    file_type = body.get("format", "h5")
 
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
@@ -657,16 +673,16 @@ def get_versions():
 
 
 @apilog
-def post_change_log(change_log_record):
+def post_change_log(body):
     db_session = orm.get_session()
-    change_version = change_log_record.get('version')
+    change_version = body.get('version')
 
-    change_log_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_changelog = orm.models.ChangeLog(**change_log_record)
+        orm_changelog = orm.models.ChangeLog(**body)
     except TypeError as e:
-        err = _report_conversion_error('changelog', e, **change_log_record)
+        err = _report_conversion_error('changelog', e, **body)
         return err, 400
 
     try:
@@ -674,16 +690,16 @@ def post_change_log(change_log_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('changelog: ' + change_log_record['version'], **change_log_record)
+        err = _report_object_exists('changelog: ' + body['version'], **body)
         return err, 405
     except orm.ORMException as e:
-        err = _report_write_error('changelog', e, **change_log_record)
+        err = _report_write_error('changelog', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_change_log', status='created',
-                             change_version=change_version, **change_log_record))
+                             change_version=change_version, **body))
 
-    return change_log_record, 201, {'Location': BasePath + '/changelog/' + change_version}
+    return body, 201, {'Location': BasePath + '/changelog/' + change_version}
 
 
 @apilog
@@ -850,6 +866,8 @@ def generate_file_response(results, file_type, file_id, study_id, units):
     else:
         raise ValueError("Invalid file type")
 
+    m_hash = md5(tmp_file_path)
+
     file_record = {
         'id': file_id,
         'URL': base_url + '/download/' + str(file_id),
@@ -858,6 +876,7 @@ def generate_file_response(results, file_type, file_id, study_id, units):
         'version': Version,
         'units': units,
         'created': datetime.datetime.utcnow(),
+        'md5': m_hash,
         '__filepath__': tmp_file_path
     }
 

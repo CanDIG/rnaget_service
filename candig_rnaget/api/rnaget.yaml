@@ -1,6 +1,7 @@
 openapi: 3.0.0
 info:
-  title: RNA Seq API POC
+  title: rnaget API
+  description: RNA API for expression value retrieval
   version: 0.9.4
 tags:
   - name: projects
@@ -1199,6 +1200,10 @@ components:
           type: string
         units:
           type: string
+        md5:
+          type: string
+        headers:
+          type: object
         created:
           type: string
       externalDocs:
