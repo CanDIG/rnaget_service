@@ -67,7 +67,7 @@ def configure_app():
 
     @app.app.after_request
     def rewrite_bad_request(response):
-        if response.status_code == 400 and response.data.decode('utf-8').find('"title":') is not None:
+        if response.status_code == 400 and response.data.decode('utf-8').find('"title":') != -1:
             original = json.loads(response.data.decode('utf-8'))
             response.data = json.dumps({'code': 400, 'message': original["detail"]})
             response.headers['Content-Type'] = 'application/json'
