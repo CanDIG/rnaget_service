@@ -263,7 +263,7 @@ class ExpressionQueryTool(object):
                     results["features"] = ExpressionQueryTool.decode_h5_array(supplementary_feature_array)
                 else:
                     results["features"] = list(feature_indices.keys())
-                    results["expression"] = dict(zip(sample_indices.keys(), map(list, feature_expressions)))
+                results["expression"] = dict(zip(sample_indices.keys(), map(list, feature_expressions)))
 
             elif self._output_format == "h5":
                 encoded_samples = [sample_id.encode('utf8') for sample_id in sample_indices]
