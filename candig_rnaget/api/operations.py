@@ -403,14 +403,14 @@ def get_expression_formats():
 
 
 @apilog
-def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
+def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID=None,
                            version=None, featureIDList=None, featureNameList=None,
                            minExpression=None, maxExpression=None,
                            featureThresholdLabel="name", format="h5"):
     """
 
     :param tags: optional Comma separated tag list
-    :param sampleID: optional sample identifier
+    :param sampleIDList: optional list of sample identifiers
     :param projectID: optional project identifier
     :param studyID: optional study identifier
     :param version: optional version
@@ -423,14 +423,14 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
-        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+        if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
             expressions = filter_expression_format(expressions, format)
         else:
             responses = []
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression,
                         format, threshold_label=featureThresholdLabel, threshold_input_type='array'
                     )
                     if file_response:
@@ -463,7 +463,7 @@ def post_search_expressions(expression_search):
     tags = expression_search.get("tags")
     studyID = expression_search.get("studyID")
     projectID = expression_search.get("projectID")
-    sampleID = expression_search.get("sampleID")
+    sampleIDList = expression_search.get("sampleIDList")
     featureIDList = expression_search.get("featureIDList")
     featureNameList = expression_search.get("featureNameList")
     maxExpression = expression_search.get("maxExpression")
@@ -475,7 +475,7 @@ def post_search_expressions(expression_search):
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
-        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+        if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
             expressions = filter_expression_format(expressions, format)
         else:
             # H5 queries
@@ -483,7 +483,7 @@ def post_search_expressions(expression_search):
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression,
                         file_type, threshold_label=None, threshold_input_type='object'
                     )
                     if file_response:
@@ -546,7 +546,7 @@ def filter_expression_format(expressions, format):
     return expressions.filter(expression.fileType == format)
 
 
-def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
+def slice_expression_data(expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type,
                           threshold_label='name', threshold_input_type='array'):
     """
     Performs the slicing on each expression file
@@ -569,9 +569,9 @@ def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExp
             feature_map=feature_map
         )
 
-        if sampleID or featureIDList or featureNameList:
+        if sampleIDList or featureIDList or featureNameList:
             q = h5query.search(
-                sample_id=sampleID,
+                samples=sampleIDList,
                 feature_list_id=featureIDList,
                 feature_list_name=featureNameList
             )

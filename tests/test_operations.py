@@ -415,12 +415,12 @@ def test_get_search_expressions_slice_by_sample(test_client):
 
     with context:
         # bad sample id (200)
-        result, code = operations.get_search_expressions(sampleID="blah")
+        result, code = operations.get_search_expressions(sampleIDList=["blah"])
         assert len(result) == 0
         assert code == 200
 
         # valid sample id (200)
-        result, code = operations.get_search_expressions(sampleID="DO221123", format='json')
+        result, code = operations.get_search_expressions(sampleIDList=["DO221123", "DO221124"], format='json')
         assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
         assert result[0]['fileType'] == 'json'
         assert code == 200
@@ -467,7 +467,7 @@ def test_get_search_expressions_slice_by_feature_sample_json(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(
-            featureNameList=['TSPAN6', 'TNMD'], sampleID='DO221123', format='json')
+            featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='json')
         assert len(result) == 1
         assert result[0]['fileType'] == 'json'
         assert code == 200
@@ -499,6 +499,7 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
             maxExpression=['TSPAN6', 'NotAValue', 'TNMD', '2.0'], format='json')
         assert code == 400
 
+
 def test_get_search_expressions_slice_by_sample_h5(test_client):
     """
     get_search_expressions
@@ -507,12 +508,12 @@ def test_get_search_expressions_slice_by_sample_h5(test_client):
 
     with context:
         # bad sample id (200)
-        result, code = operations.get_search_expressions(sampleID="blah")
+        result, code = operations.get_search_expressions(sampleIDList=["blah"])
         assert not result
         assert code == 200
 
         # valid sample id (200)
-        result, code = operations.get_search_expressions(sampleID="DO221123", format='h5')
+        result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='h5')
         assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
         assert result[0]['fileType'] == 'h5'
         assert code == 200
@@ -559,7 +560,7 @@ def test_get_search_expressions_slice_by_feature_sample_h5(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(
-            featureNameList=['TSPAN6', 'TNMD'], sampleID='DO221123', format='h5')
+            featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='h5')
         assert len(result) == 1
         assert result[0]['fileType'] == 'h5'
         assert code == 200
@@ -593,12 +594,12 @@ def test_get_search_expressions_slice_by_sample_loom(test_client):
 
     with context:
         # bad sample id (200)
-        result, code = operations.get_search_expressions(sampleID="blah")
+        result, code = operations.get_search_expressions(sampleIDList=["blah"])
         assert not result
         assert code == 200
 
         # valid sample id (200)
-        result, code = operations.get_search_expressions(sampleID="DO221123", format='loom')
+        result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='loom')
         assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
         assert result[0]['fileType'] == 'loom'
         assert code == 200
@@ -645,7 +646,7 @@ def test_get_search_expressions_slice_by_feature_sample_loom(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(
-            featureNameList=['TSPAN6', 'TNMD'], sampleID='DO221123', format='loom')
+            featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='loom')
         assert len(result) == 1
         assert result[0]['fileType'] == 'loom'
         assert code == 200
