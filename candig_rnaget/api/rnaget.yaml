@@ -506,11 +506,11 @@ paths:
               type: string
         - name: sampleIDList
           in: query
-          description: sampleID to match
-          required: false
-          type: array
-          items:
-            type: string
+          description: sampleID list to match
+          schema:
+            type: array
+            items:
+              type: string
         - name: projectID
           in: query
           description: project to filter by
