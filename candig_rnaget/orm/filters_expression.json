@@ -1,43 +1,51 @@
-[
-  {    
-  "filterType": "feature",
-  "filters": [
-        {
-            "filter": "maxExpression",
-            "description": "return only results with expression values less than listed threshold for each corresponding feature in the array"
-        },
-        {
-            "filter": "minExpression",
-            "description": "return only results with expression values greater than listed threshold for each corresponding feature in the array"},
-        {
-            "filter": "featureIDList",
-            "description": "return only values for listed feature ID values"
-        },
-        {
-            "filter": "featureNameList",
-            "description": "return only values for listed gene symbols"
-        },
-        {
-            "filter": "featureAccessionList",
-            "description": "return only values for listed accession numbers"
-        }
-    ]    
-  },
-  {
-    "filterType": "sample",
-    "filters": [
-        {
-            "filter": "sampleID",
-            "description": "sampleID to match"
-        },
-        {
-            "filter": "projectID",
-            "description": "project to filter on"
-        },
-        {
-            "filter": "studyID",
-            "description": "study to filter on"
-        }
-    ]
-  }
-]
+{
+  "feature": [
+    {
+    "filter": "maxExpression",
+    "fieldType": "string",
+    "description": "return only results with expression values less than listed threshold for each corresponding feature in the array"
+    },
+    {
+    "filter": "minExpression",
+    "fieldType": "string",
+    "description": "return only results with expression values greater than listed threshold for each corresponding feature in the array"
+    },
+    {
+    "filter": "featureIDList",
+    "fieldType": "string",
+    "description": "return only values for listed feature ID values"
+    },
+    {
+    "filter": "featureNameList",
+    "fieldType": "string",
+    "description": "return only values for listed gene symbols"
+    }
+  ],
+  "sample": [
+    {
+    "filter": "sampleID",
+    "fieldType": "string",
+    "description": "sampleID to match"
+    },
+    {
+    "filter": "projectID",
+    "fieldType": "string",
+    "description": "project to filter on"
+    },
+    {
+    "filter": "studyID",
+    "fieldType": "string",
+    "description": "study to filter on"
+    },
+    {
+    "filter": "tags",
+    "fieldType": "string",
+    "description": "Comma separated tag list to filter by"
+    },
+    {
+    "filter": "version",
+    "fieldType": "string",
+    "description": "Version to return"
+    }
+  ]
+}

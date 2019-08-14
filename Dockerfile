@@ -1,16 +1,18 @@
-FROM python:3
+FROM python:3-slim-stretch
 LABEL Maintainer "CanDIG Project"
 
 COPY . /app
 WORKDIR /app
 
-RUN pip install -r requirements.txt && \
+RUN pip install --no-cache-dir -r requirements.txt && \
     python setup.py install
 
 EXPOSE 3000
 
-# Run the model service server
-# provide some explicit defaults if no arugments are given
-ENTRYPOINT [ "python_model_service", "--port", "3000"]
-CMD [ "--logfile", "rnaget_service.log",\
-      "--database", "rnaget_service.sqlite" ]
+# Run the RNAget service server
+# provide some explicit defaults if no arguments are given
+ENTRYPOINT [ "candig_rnaget", "--port", "3000"]
+CMD [ "--logfile", "log/rnaget.log",\
+      "--database", "data/rnaget.sqlite",\
+      "--tmpdata", "data/tmp/" ]
+

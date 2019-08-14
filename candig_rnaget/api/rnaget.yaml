@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   title: RNA Seq API POC
-  version: "0.9.1"
+  version: "0.9.3b"
 basePath: /rnaget
 consumes:
   - application/json
@@ -36,6 +36,11 @@ tags:
     url: https://github.com/ga4gh-rnaseq/schema
 - name: files
   description: Returns files
+  externalDocs:
+    description: Find out more
+    url: https://github.com/ga4gh-rnaseq/schema
+- name: continuous
+  description: Coordinate range based signal data
   externalDocs:
     description: Find out more
     url: https://github.com/ga4gh-rnaseq/schema
@@ -78,6 +83,8 @@ paths:
           description: Internal error - project not created
           schema:
             $ref: '#/definitions/Error'
+      security:
+        - api_key: []
   /projects/search:
     get:
       tags:
@@ -167,12 +174,12 @@ paths:
             $ref: '#/definitions/project'
         "400":
           description: Invalid ID supplied
-        "403":
-          description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
         "404":
-          description: Project not found
+          description: Project not found"
+        "406":
+          description: Requested formatting not supported
+        "501":
+          description: The specified request is not supported by the server
       security:
         - api_key: []
   /studies:
@@ -352,6 +359,50 @@ paths:
           description: Internal error - expression not created
           schema:
             $ref: '#/definitions/Error'
+    get:
+      tags:
+      - expressions
+      summary: Search for all expressions
+      description: Search for all expressions
+      operationId: candig_rnaget.api.operations.get_expressions
+      produces:
+      - application/xml
+      - application/json
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/file'
+        "400":
+          description: Error
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /expressions/formats:
+    get:
+      tags:
+      - expressions
+      summary: Get output formats
+      description: Returns a list of supported expression matrix formats
+      operationId: candig_rnaget.api.operations.get_expression_formats
+      responses:
+        "200":
+          description: successful operation
+          schema:
+            type: array
+            items:
+              type: string
+        "404":
+          description: Format list not found
+        "406":
+          description: Requested formatting not supported
+        "501":
+          description: The specified request is not supported by the server
   /expressions/search:
     get:
       tags:
@@ -371,11 +422,13 @@ paths:
         items:
           type: string
         collectionFormat: multi
-      - name: sampleID
+      - name: sampleIDList
         in: query
         description: sampleID to match
         required: false
-        type: string
+        type: array
+        items:
+          type: string
       - name: projectID
         in: query
         description: project to filter by
@@ -405,13 +458,6 @@ paths:
         type: array
         items:
           type: string
-      - name: featureAccessionList
-        in: query
-        description: return only values for listed accession numbers
-        required: false
-        type: array
-        items:
-          type: string
       - name: minExpression
         in: query
         description: array of feature id, min threshold tuples
@@ -428,9 +474,14 @@ paths:
           type: string
       - name: featureThresholdLabel
         in: query
-        description: one of `id` or `name` or `accession` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
-        x-example: name
+        description: one of `id` or `name` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
         required: false
+        type: string
+      - name: format
+        in: query
+        description: one of `h5` or `loom` or `json`
+        x-example: h5
+        required: true
         type: string
       responses:
         "200":
@@ -438,7 +489,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/expression'
+              $ref: '#/definitions/file'
         "400":
           description: Error
         "403":
@@ -447,6 +498,36 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
+    post:
+      tags:
+      - expressions
+      summary: Post search for expressions matching filters
+      description: Post search for expressions matching filters
+      operationId: candig_rnaget.api.operations.post_search_expressions
+      produces:
+      - application/xml
+      - application/json
+      parameters:
+        - name: expression_search
+          in: body
+          schema:
+            $ref: '#/definitions/expressionsearch'
+      responses:
+        "200":
+          description: Successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/file'
+        "400":
+          description: Error
+        "403":
+          description: Authorisation error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /expressions/search/filters:
     get:
       tags:
@@ -458,7 +539,7 @@ paths:
       - application/xml
       - application/json
       parameters:
-      - name: filterType
+      - name: type
         in: query
         description: one of `feature` or `sample` reflecting which axis to request filters for.  If blank, both will be returned
         required: false
@@ -469,7 +550,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/expressionSearchFilter'
+              $ref: '#/definitions/searchFilter'
         "400":
           description: Error
         "403":
@@ -499,7 +580,7 @@ paths:
         "200":
           description: successful operation
           schema:
-            $ref: '#/definitions/expression'
+            $ref: '#/definitions/file'
         "400":
           description: Invalid ID supplied
         "403":
@@ -510,31 +591,7 @@ paths:
           description: Expression not found
       security:
       - api_key: []
-  /expressions/download/{token}:
-    get:
-      tags:
-      - download hdf5
-      summary: Download the file as HDF5
-      description: Returns download URL for file
-      operationId: candig_rnaget.api.operations.expression_download
-      parameters:
-      - name: token
-        in: path
-        description: temp file token
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
-      responses:
-        "200":
-          description: Successful operation
-        "400":
-          description: Invalid ID supplied
-        "403":
-          description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
-        "404":
-          description: File not found
+
   /changelog:
     post:
       tags:
@@ -612,7 +669,7 @@ paths:
       - name: version
         in: path
         description: release version
-        x-example: 0.9.0
+        x-example: 0.9.3b
         required: true
         type: string
       responses:
@@ -711,31 +768,130 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-  /download/{token}:
+
+  /continuous/{continuousId}:
     get:
       tags:
-      - download temp file
-      summary: Download the file as an available file type
-      description: Returns download URL for file
-      operationId: candig_rnaget.api.operations.tmp_download
+      - continuous
+      summary: Retrieve continuous signal data by ID
+      description: Returns a single specified signal matrix
+      operationId: candig_rnaget.api.operations.get_continuous_by_id
       parameters:
-      - name: token
+      - name: continuousId
         in: path
-        description: temp file token
+        description: ID of continuous matrix to return
         x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
         required: true
         type: string
+      produces:
+        - application/vnd.loom
+        - application/json
       responses:
-        "200":
-          description: Successful operation
-        "400":
-          description: Invalid ID supplied
-        "403":
-          description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
-        "404":
-          description: File not found
+#        "200":
+#          description: successful operation
+#          schema:
+#            type: file
+#        "400":
+#          description: Invalid ID supplied
+#        "404":
+#          description: Continuous matrix not found
+#        "406":
+#          description: Requested formatting not supported
+        "501":
+          description: The specified request is not supported by the server
+  /continuous/formats:
+    get:
+      tags:
+      - continuous
+      summary: Get output formats
+      description: Returns a list of supported continuous matrix formats
+      operationId: candig_rnaget.api.operations.get_continuous_formats
+      responses:
+#        "200":
+#          description: successful operation
+#          schema:
+#            type: array
+#            items:
+#              type: string
+#        "404":
+#          description: Format list not found
+#        "406":
+#          description: Requested formatting not supported
+        "501":
+          description: The specified request is not supported by the server
+  /continuous/search:
+    get:
+      tags:
+      - continuous
+      summary: Search for continuous data matching filters
+      description: Search for continuous data matching filters
+      operationId: candig_rnaget.api.operations.search_continuous
+      parameters:
+      - name: format
+        in: query
+        description: Data format to return
+        x-example: loom
+        required: true
+        type: string
+      - name: tags
+        in: query
+        description: Comma separated tag list to filter by
+        required: false
+        type: array
+        items:
+          type: string
+        collectionFormat: csv
+      - name: sampleIDList
+        in: query
+        description: comma separated list of sampleIDs to match
+        required: false
+        type: array
+        items:
+          type: string
+        collectionFormat: csv
+      - name: projectID
+        in: query
+        description: project to filter by
+        required: false
+        type: string
+      - name: studyID
+        in: query
+        description: study to filter by
+        required: false
+        type: string
+      - name: version
+        in: query
+        description: version to filter by
+        required: false
+        type: string
+      - name: chr
+        in: query
+        description: The refererence to which start and end apply in the form chr? where ? is the specific ID of the chromosome (ex. chr1, chrX).
+        required: false
+        type: string
+      - name: start
+        in: query
+        description: The start position of the range on the sequence, 0-based, inclusive.
+        required: false
+        type: integer
+      - name: end
+        in: query
+        description: The end position of the range on the sequence, 0-based, exclusive.
+        required: false
+        type: integer
+      responses:
+#        "200":
+#          description: Successful operation
+#          schema:
+#            type: array
+#            items:
+#              $ref: "#/definitions/file"
+#        "400":
+#          description: The requested data format is not supported
+#        "406":
+#          description: Requested formatting not supported
+        "501":
+          description: The specified request is not supported by the server
 
 definitions:
   Error:
@@ -764,6 +920,8 @@ definitions:
       name:
         type: string
       description:
+        type: string
+      created:
         type: string
     externalDocs:
       description: Find out more
@@ -797,14 +955,16 @@ definitions:
         type: array
         items:
           type: string
+      created:
+        type: string
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
       name: study
-  expression:
+  expressionsearch:
     type: object
-    description: Matrix of expression values.
+    description: Expression search query object
     properties:
       version:
         type: string
@@ -812,44 +972,49 @@ definitions:
         type: array
         items:
           type: string
-      id:
+      sampleID:
+        type: string
+      projectID:
         type: string
         format: uuid
-      URL:
-        type: string
       studyID:
         type: string
         format: uuid
+      featureIDList:
+        type: array
+        items:
+          type: string
+      featureNameList:
+        type: array
+        items:
+          type: string
+      minExpression:
+        type: array
+        items:
+          type: object
+      maxExpression:
+        type: array
+        items:
+          type: object
+      featureThresholdLabel:
+        type: string
+      format:
+        type: string
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
     xml:
-      name: expression
+      name: expressionsearch
   searchFilter:
     type: object
     description: parameter name to use for filter when searching
     properties:
-      version:
+      fieldType:
         type: string
       filter:
         type: string
       description:
         type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: filters
-  expressionSearchFilter:
-    type: object
-    description: parameter name to use for filter when searching
-    properties:
-      filterType:
-        type: string
-      filters:
-        type: array
-        items:
-          type: object
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
@@ -885,6 +1050,10 @@ definitions:
         format: uuid
       URL:
         type: string
+      units:
+        type: string
+      created:
+        type: string
     externalDocs:
       description: Find out more
       url: https://github.com/ga4gh-rnaseq/schema
@@ -900,6 +1069,6 @@ securityDefinitions:
 #      read:expression: read expression
   api_key:
     type: apiKey
-    name: api_key
+    name: Authorization
     in: header
     x-apikeyInfoFunc: candig_rnaget.auth.auth_key

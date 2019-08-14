@@ -1,24 +1,21 @@
 dry-run: null
 hookfiles: null
 language: python
-sandbox: false
-server: python3 -m candig_rnaget --database=test.db --logfile=test.log --loglevel=INFO --port=8045
+server: candig_rnaget --database=test.db --logfile=test.log --loglevel=INFO --port=8045
 server-wait: 30
 init: false
 custom: {}
 names: false
 only: []
 output: []
-header: []
+header: ["Authorization: test"]
 sorted: false
 user: null
 inline-errors: false
 details: false
 method: []
 color: true
-loglevel: silent
-timestamp: false
-silent: false
+loglevel: warn
 path: []
 hooks-worker-timeout: 5000
 hooks-worker-connect-timeout: 1500
@@ -30,4 +27,4 @@ hooks-worker-handler-host: 127.0.0.1
 hooks-worker-handler-port: 61321
 config: ./dredd.yml
 blueprint: ../candig_rnaget/api/rnaget.yaml
-endpoint: 'http://ga4ghdev01.bcgsc.ca:8045'
+endpoint: 'http://127.0.0.1:8045'
