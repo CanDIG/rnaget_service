@@ -504,10 +504,12 @@ paths:
             type: array
             items:
               type: string
-        - name: sampleID
+        - name: sampleIDList
           in: query
           description: sampleID to match
-          schema:
+          required: false
+          type: array
+          items:
             type: string
         - name: projectID
           in: query

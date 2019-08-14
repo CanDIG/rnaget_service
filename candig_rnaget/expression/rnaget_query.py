@@ -101,43 +101,31 @@ class ExpressionQueryTool(object):
             raise LookupError("Indices for {} could not be generated".format(axis))
         return OrderedDict([(k, v) for (k, v) in sorted_indices])
 
-    def _search_sample(self, sample_id):
+    def _search_samples(self, sample_list):
         expression = self.get_expression_matrix()
-        sample_index = self._get_hdf5_indices(self._samples, [sample_id]).get(sample_id)
+        indices = self._get_hdf5_indices(self._samples, sample_list)
 
         results = self._build_results_template(expression)
 
-        if sample_index is not None:
-            sample_expressions = expression[sample_index, ...]
-            feature_load = self.get_features()[...]
+        sample_expressions = list(expression[indices.values(), ...])
+        feature_load = self.get_features()[...]
 
-            if self._output_format == "json":
-                results["features"] = list(map(bytes.decode, feature_load))
-                results["expression"][sample_id] = list(sample_expressions)
+        if self._output_format == "json":
+            results["features"] = ExpressionQueryTool.decode_h5_array(feature_load)
+            results["expression"] = dict(zip(indices.keys(), map(list, sample_expressions)))
 
-            elif self._output_format == "h5":
-                encoded_samples = [sample_id.encode('utf8')]
+        elif self._output_format == "h5":
+            encoded_samples = [sample_id.encode('utf8') for sample_id in indices]
 
-                results = self._write_hdf5_results(
-                    results, encoded_samples, feature_load, sample_expressions)
+            results = self._write_hdf5_results(
+                results, encoded_samples, feature_load, sample_expressions)
 
-                results[self._expression_matrix].attrs["units"] = expression.attrs.get("units")
+            results[self._expression_matrix].attrs["units"] = expression.attrs.get("units")
 
-            elif self._output_format == "loom":
-                results["ra"]["Accession"] = np.array(list(map(bytes.decode, feature_load)))
-                results["matrix"] = sample_expressions.reshape(sample_expressions.shape[0], 1)
-                results["ca"]["SampleID"] = np.array([sample_id])
-
-            if self._include_metadata:
-                counts = self.get_raw_counts()
-                sample_counts = counts[sample_index, ...]
-
-                if self._output_format == "json":
-                    results["metadata"]["raw_counts"][sample_id] = list(sample_counts)
-
-                elif self._output_format == "h5":
-                    results = self._write_hdf5_metadata(
-                        results, 1, len(feature_load), counts=sample_counts)
+        elif self._output_format == "loom":
+            results["ra"]["Accession"] = np.array(ExpressionQueryTool.decode_h5_array(feature_load))
+            results["matrix"] = np.transpose(sample_expressions)
+            results["ca"]["SampleID"] = np.array(list(indices.keys()))
 
         return results
 
@@ -149,16 +137,12 @@ class ExpressionQueryTool(object):
         samples = self.get_samples()
         indices = self._get_hdf5_indices(self._features, feature_list)
         results = self._build_results_template(expression)
-        counts = None
         supplementary_feature_array = None
 
         if supplementary_feature_label:
             supplementary_feature_array = []
             for feature_id in indices:
                 supplementary_feature_array.append(supplementary_feature_label[feature_id])
-
-        if self._include_metadata:
-            counts = self.get_raw_counts()
 
         feature_slices = list(indices.values())
 
@@ -172,7 +156,7 @@ class ExpressionQueryTool(object):
 
             if self._output_format == "json":
                 if supplementary_feature_array:
-                    results["features"] = list(map(bytes.decode, supplementary_feature_array))
+                    results["features"] = ExpressionQueryTool.decode_h5_array(supplementary_feature_array)
                 else:
                     results["features"] = list(feature_list)
 
@@ -199,20 +183,15 @@ class ExpressionQueryTool(object):
         else:
             if self._output_format == "json":
                 if supplementary_feature_array:
-                    results["features"] = list(map(bytes.decode, supplementary_feature_array))
+                    results["features"] = ExpressionQueryTool.decode_h5_array(supplementary_feature_array)
                 else:
                     results["features"] = list(indices.keys())
 
             search_expressions = list(expression[:, feature_slices])
-            samples_list = list(map(bytes.decode, self.get_samples()))
+            samples_list = ExpressionQueryTool.decode_h5_array(self.get_samples())
 
         if self._output_format == "json":
             results["expression"] = dict(zip(samples_list, (map(list, search_expressions))))
-
-            if self._include_metadata:
-                feature_counts = list(counts[:, feature_slices])
-                counts_zip = zip(*feature_counts)
-                results["metadata"]["raw_counts"] = dict(zip(samples_list, (map(list, counts_zip))))
 
         elif self._output_format == "h5":
             encoded_samples = [sample.encode('utf-8') for sample in samples_list]
@@ -221,11 +200,6 @@ class ExpressionQueryTool(object):
             results = self._write_hdf5_results(
                 results, encoded_samples, encoded_features, search_expressions,
                 suppl_features_label=supplementary_feature_array)
-
-            if self._include_metadata:
-                feature_counts = list(counts[:, feature_slices])
-                results = self._write_hdf5_metadata(
-                    results, len(encoded_samples), len(encoded_features), counts=feature_counts)
 
         elif self._output_format == "loom":
             results["matrix"] = np.array(np.transpose(search_expressions))
@@ -237,13 +211,12 @@ class ExpressionQueryTool(object):
 
         return results
 
-    def search(self, sample_id=None, feature_list_id=None, feature_list_accession=None, feature_list_name=None):
+    def search(self, samples=None, feature_list_id=None, feature_list_accession=None, feature_list_name=None):
         """
         General search function. Accepts any combination of the following arguments:
         - sample_id || feature_list_id or feature_list_accession or feature_list_name || sample_id and feature_list
         """
         supplementary_feature_label = {}
-        feature_counts = None
 
         if feature_list_accession or feature_list_name:
             if feature_list_id or (feature_list_accession and feature_list_name):
@@ -268,9 +241,9 @@ class ExpressionQueryTool(object):
             for sf in supplementary_feature_label:
                 supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
 
-        if sample_id and feature_list_id:
+        if samples and feature_list_id:
             expression = self.get_expression_matrix()
-            sample_index = self._get_hdf5_indices(self._samples, [sample_id]).get(sample_id)
+            sample_indices = self._get_hdf5_indices(self._samples, samples)
             feature_indices = self._get_hdf5_indices(self._features, feature_list_id)
             results = self._build_results_template(expression)
             supplementary_feature_array = None
@@ -280,49 +253,39 @@ class ExpressionQueryTool(object):
                 for feature_id in feature_indices:
                     supplementary_feature_array.append(supplementary_feature_label[feature_id])
 
-            if sample_index is not None:
-                feature_slices = list(feature_indices.values())
-                feature_expressions = list(expression[sample_index, feature_slices])
+            feature_expressions = []
+            feature_slices = feature_indices.values()
+            for sample_index in sample_indices.values():
+                feature_expressions.append(expression[sample_index, feature_slices])
 
-                if self._include_metadata:
-                    counts = self.get_raw_counts()
-                    feature_counts = list(counts[sample_index, feature_slices])
+            if self._output_format == "json":
+                if supplementary_feature_array:
+                    results["features"] = ExpressionQueryTool.decode_h5_array(supplementary_feature_array)
+                else:
+                    results["features"] = list(feature_indices.keys())
+                results["expression"] = dict(zip(sample_indices.keys(), map(list, feature_expressions)))
 
-                if self._output_format == "json":
-                    if supplementary_feature_array:
-                        results["features"] = list(map(bytes.decode, supplementary_feature_array))
-                    else:
-                        results["features"] = list(feature_indices.keys())
-                    results["expression"][sample_id] = feature_expressions
-                    if self._include_metadata:
-                        results["metadata"]["raw_counts"][sample_id] = feature_counts
+            elif self._output_format == "h5":
+                encoded_samples = [sample_id.encode('utf8') for sample_id in sample_indices]
+                encoded_features = [feature.encode('utf-8') for feature in feature_indices]
 
-                elif self._output_format == "h5":
-                    encoded_samples = [sample_id.encode('utf8')]
-                    encoded_features = [feature.encode('utf-8') for feature in feature_indices]
+                results = self._write_hdf5_results(
+                    results, encoded_samples, encoded_features, feature_expressions,
+                    suppl_features_label=supplementary_feature_array)
 
-                    results = self._write_hdf5_results(
-                        results, encoded_samples, encoded_features, feature_expressions,
-                        suppl_features_label=supplementary_feature_array)
+            elif self._output_format == "loom":
+                results["matrix"] = np.transpose(feature_expressions)
 
-                    if self._include_metadata:
-                        results = self._write_hdf5_metadata(
-                            results, len(encoded_samples), len(encoded_features), counts=feature_counts)
+                results["ra"]["Accession"] = np.array([feature for feature in feature_indices])
+                if supplementary_feature_array:
+                    results["ra"]["Gene"] = np.array(supplementary_feature_array)
 
-                elif self._output_format == "loom":
-                    f_matrix = np.array(feature_expressions)
-                    results["matrix"] = f_matrix.reshape(f_matrix.shape[0], 1)
-
-                    results["ra"]["Accession"] = np.array([feature for feature in feature_indices])
-                    if supplementary_feature_array:
-                        results["ra"]["Gene"] = np.array(supplementary_feature_array)
-
-                    results["ca"]["SampleID"] = np.array([sample_id])
+                results["ca"]["SampleID"] = np.array(list(sample_indices.keys()))
 
             return results
 
-        elif sample_id:
-            return self._search_sample(sample_id)
+        elif samples:
+            return self._search_samples(samples)
 
         elif feature_list_id:
             return self._search_features(feature_list_id, supplementary_feature_label=supplementary_feature_label)
@@ -377,7 +340,7 @@ class ExpressionQueryTool(object):
         features_ds[...] = np.transpose(features_data)
 
         samples_ds = results.create_dataset(
-            self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S20")
+            self._samples, (len(sample_list),), maxshape=(len(sample_list),), dtype="S40")
         samples_ds[...] = sample_list
 
         expression_ds = results.create_dataset(
@@ -409,15 +372,6 @@ class ExpressionQueryTool(object):
             counts_ds[...] = counts
 
         return results
-
-    @staticmethod
-    def split_column(col_array):
-        """
-        Splits a single column result into an array of arrays
-        *** response formatting helper to keep possibility of multi-sample queries open
-        """
-        col_split = np.array_split(col_array, len(col_array))
-        return list(map(list, col_split))
 
     def _build_results_template(self, expression_matrix):
         """
@@ -457,3 +411,8 @@ class ExpressionQueryTool(object):
 
     def close(self):
         self._file.close()
+
+    @staticmethod
+    def decode_h5_array(input_array):
+        decoded = map(bytes.decode, input_array)
+        return list(decoded)
