@@ -479,7 +479,7 @@ def post_search_expressions(body):
     tags = body.get("tags")
     studyID = body.get("studyID")
     projectID = body.get("projectID")
-    sampleID = body.get("sampleID")
+    sampleIDList = body.get("sampleIDList")
     featureIDList = body.get("featureIDList")
     featureNameList = body.get("featureNameList")
     maxExpression = body.get("maxExpression")
