@@ -1,177 +1,203 @@
-swagger: '2.0'
+openapi: 3.0.0
 info:
-  title: RNA Seq API POC
-  version: "0.9.3b"
-basePath: /rnaget
-consumes:
-  - application/json
-produces:
-  - application/json
-
+  title: rnaget API
+  description: RNA API for expression value retrieval
+  version: 0.9.4
 tags:
-- name: projects
-  description: High level collection of studies
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: studies
-  description: Collection of associated uniformly processed RNA samples
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: expressions
-  description: Feature level expression data
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: getVersions
-  description: Returns database release versions
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: changelog
-  description: Returns change log for a release version
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: files
-  description: Returns files
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-- name: continuous
-  description: Coordinate range based signal data
-  externalDocs:
-    description: Find out more
-    url: https://github.com/ga4gh-rnaseq/schema
-
+  - name: projects
+    description: High level collection of studies
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: studies
+    description: Collection of associated uniformly processed RNA samples
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: expressions
+    description: Feature level expression data
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: getVersions
+    description: Returns database release versions
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: changelog
+    description: Returns change log for a release version
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: files
+    description: Returns files
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
+  - name: continuous
+    description: Coordinate range based signal data
+    externalDocs:
+      description: Find out more
+      url: https://github.com/ga4gh-rnaseq/schema
 paths:
   /projects:
     post:
       tags:
-      - projects
+        - projects
       operationId: candig_rnaget.api.operations.post_project
       summary: Add a project to the database
       description: Creates and returns a new project record
-      parameters:
-        - name: project_record
-          in: body
-          schema:
-            $ref: '#/definitions/project'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/project"
       responses:
         "201":
           description: New project created
-          schema:
-            $ref: '#/definitions/project'
           headers:
             Location:
-              type: string
-              format: url
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
         "400":
           description: Project provided in body does not pass schema validation
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "405":
           description: Forbidden to overwrite project in post
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: Internal error - project not created
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
   /projects/search:
     get:
       tags:
-      - projects
+        - projects
       summary: Search for projects matching filters
       description: Search for projects matching filters
       operationId: candig_rnaget.api.operations.search_projects
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: tags
-        in: query
-        description: Comma separated tag list to filter by
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: multi
-      - name: version
-        in: query
-        description: version to return
-        required: false
-        type: string
-      responses:
-        "200":
-          description: successful operation
+        - name: tags
+          in: query
+          description: Comma separated tag list to filter by
+          explode: true
           schema:
             type: array
             items:
-              $ref: '#/definitions/project'
+              type: string
+        - name: version
+          in: query
+          description: version to return
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/project"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/project"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
   /projects/search/filters:
     get:
       tags:
-      - projects
+        - projects
       summary: Returns filters for project searches
       description: Get filters for project searches
       operationId: candig_rnaget.api.operations.search_project_filters
-      produces:
-      - application/xml
-      - application/json
       responses:
         "200":
           description: successful operation
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/searchFilter'
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
   /projects/{projectId}:
     get:
       tags:
-      - projects
+        - projects
       summary: Find project by ID
       description: Returns a single specified project
       operationId: candig_rnaget.api.operations.get_project_by_id
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: projectId
-        in: path
-        description: ID of project to return
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
-        format: uuid
+        - name: projectId
+          in: path
+          description: ID of project to return
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
       responses:
         "200":
           description: successful operation
-          schema:
-            $ref: '#/definitions/project'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/project"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
         "400":
           description: Invalid ID supplied
         "404":
@@ -185,218 +211,277 @@ paths:
   /studies:
     post:
       tags:
-      - studies
+        - studies
       operationId: candig_rnaget.api.operations.post_study
       summary: Add a study to the database
       description: Creates and returns a new study record
-      parameters:
-        - name: study_record
-          in: body
-          schema:
-            $ref: '#/definitions/study'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/study"
       responses:
         "201":
           description: New study created
-          schema:
-            $ref: '#/definitions/study'
           headers:
             Location:
-              type: string
-              format: url
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/study"
         "400":
           description: Project provided in body does not pass schema validation
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "405":
           description: Forbidden to overwrite project in post
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: Internal error - project not created
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /studies/search:
     get:
       tags:
-      - studies
+        - studies
       summary: Search for studies matching filters
       description: Search for studies matching filters
       operationId: candig_rnaget.api.operations.search_studies
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: tags
-        in: query
-        description: Comma separated tag list to filter by
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: multi
-      - name: version
-        in: query
-        description: version to return
-        required: false
-        type: string
-      - name: projectID
-        in: query
-        description: parent project identifier
-        required: false
-        type: string
-        format: uuid
-      responses:
-        "200":
-          description: successful operation
+        - name: tags
+          in: query
+          description: Comma separated tag list to filter by
+          explode: true
           schema:
             type: array
             items:
-              $ref: '#/definitions/study'
+              type: string
+        - name: version
+          in: query
+          description: version to return
+          schema:
+            type: string
+        - name: projectID
+          in: query
+          description: parent project identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/study"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/study"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
   /studies/search/filters:
     get:
       tags:
-      - studies
+        - studies
       summary: Returns filters for study searches
       description: Get filters for study searches
       operationId: candig_rnaget.api.operations.search_study_filters
-      produces:
-      - application/xml
-      - application/json
       responses:
         "200":
           description: successful operation
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/searchFilter'
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
-  /studies/{studyId}:
+  "/studies/{studyId}":
     get:
       tags:
-      - studies
+        - studies
       summary: Find study by ID
       description: Returns a single specified study
       operationId: candig_rnaget.api.operations.get_study_by_id
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: studyId
-        in: path
-        description: ID of study to return
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
-        format: uuid
+        - name: studyId
+          in: path
+          description: ID of study to return
+          required: true
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: successful operation
-          schema:
-            $ref: '#/definitions/study'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/study"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/study"
         "400":
           description: Invalid ID supplied
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Study not found
       security:
-      - api_key: []
+        - api_key: []
   /expressions:
     post:
       tags:
-      - expressions
+        - expressions
       operationId: candig_rnaget.api.operations.post_expression
       summary: Create an expression database entry and map to quant file
       description: Creates and returns a new expression record
-      parameters:
-        - name: expression_record
-          in: body
-          schema:
-            $ref: '#/definitions/file'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/file"
       responses:
         "201":
           description: New expression created
-          schema:
-            $ref: '#/definitions/file'
           headers:
             Location:
-              type: string
-              format: url
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/file"
         "400":
           description: Expression provided in body does not pass schema validation
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "405":
           description: Forbidden to overwrite expression in post
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: Internal error - expression not created
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     get:
       tags:
-      - expressions
+        - expressions
       summary: Search for all expressions
       description: Search for all expressions
       operationId: candig_rnaget.api.operations.get_expressions
-      produces:
-      - application/xml
-      - application/json
       responses:
         "200":
           description: Successful operation
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/file'
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
   /expressions/formats:
     get:
       tags:
-      - expressions
+        - expressions
       summary: Get output formats
       description: Returns a list of supported expression matrix formats
       operationId: candig_rnaget.api.operations.get_expression_formats
       responses:
         "200":
           description: successful operation
-          schema:
-            type: array
-            items:
-              type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
         "404":
           description: Format list not found
         "406":
@@ -406,669 +491,725 @@ paths:
   /expressions/search:
     get:
       tags:
-      - expressions
+        - expressions
       summary: Search for expressions matching filters
       description: Search for expressions matching filters
       operationId: candig_rnaget.api.operations.get_search_expressions
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: tags
-        in: query
-        description: Comma separated tag list to filter by
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: multi
-      - name: sampleIDList
-        in: query
-        description: sampleID to match
-        required: false
-        type: array
-        items:
-          type: string
-      - name: projectID
-        in: query
-        description: project to filter by
-        required: false
-        type: string
-      - name: studyID
-        in: query
-        description: study to filter by
-        required: false
-        type: string
-      - name: version
-        in: query
-        description: version to filter by
-        required: false
-        type: string
-      - name: featureIDList
-        in: query
-        description: return only values for listed feature IDs
-        required: false
-        type: array
-        items:
-          type: string
-      - name: featureNameList
-        in: query
-        description: return only values for listed features
-        required: false
-        type: array
-        items:
-          type: string
-      - name: minExpression
-        in: query
-        description: array of feature id, min threshold tuples
-        required: false
-        type: array
-        items:
-          type: string
-      - name: maxExpression
-        in: query
-        description: array of feature id, max treshold tuples
-        required: false
-        type: array
-        items:
-          type: string
-      - name: featureThresholdLabel
-        in: query
-        description: one of `id` or `name` reflecting what feature label type is being used when applying `maxExpression` or `minExpression`.  If blank, `name` will be assumed.
-        required: false
-        type: string
-      - name: format
-        in: query
-        description: one of `h5` or `loom` or `json`
-        x-example: h5
-        required: true
-        type: string
-      responses:
-        "200":
-          description: Successful operation
+        - name: tags
+          in: query
+          description: Comma separated tag list to filter by
+          explode: true
           schema:
             type: array
             items:
-              $ref: '#/definitions/file'
+              type: string
+        - name: sampleIDList
+          in: query
+          description: sampleID list to match
+          schema:
+            type: array
+            items:
+              type: string
+        - name: projectID
+          in: query
+          description: project to filter by
+          schema:
+            type: string
+        - name: studyID
+          in: query
+          description: study to filter by
+          schema:
+            type: string
+        - name: version
+          in: query
+          description: version to filter by
+          schema:
+            type: string
+        - name: featureIDList
+          in: query
+          description: return only values for listed feature IDs
+          schema:
+            type: array
+            items:
+              type: string
+        - name: featureNameList
+          in: query
+          description: return only values for listed features
+          schema:
+            type: array
+            items:
+              type: string
+        - name: minExpression
+          in: query
+          description: array of feature id, min threshold tuples
+          schema:
+            type: array
+            items:
+              type: string
+        - name: maxExpression
+          in: query
+          description: array of feature id, max treshold tuples
+          schema:
+            type: array
+            items:
+              type: string
+        - name: featureThresholdLabel
+          in: query
+          description: one of `id` or `name` reflecting what feature label type is being
+            used when applying `maxExpression` or `minExpression`.  If blank,
+            `name` will be assumed.
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: one of `h5` or `loom` or `json`
+          required: true
+          example: h5
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
     post:
       tags:
-      - expressions
+        - expressions
       summary: Post search for expressions matching filters
       description: Post search for expressions matching filters
       operationId: candig_rnaget.api.operations.post_search_expressions
-      produces:
-      - application/xml
-      - application/json
-      parameters:
-        - name: expression_search
-          in: body
-          schema:
-            $ref: '#/definitions/expressionsearch'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/expressionsearch"
       responses:
         "200":
           description: Successful operation
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/file'
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
-
   /expressions/search/filters:
     get:
       tags:
-      - expressions
+        - expressions
       summary: Returns filters for project searches
       description: Get filters for project searches
       operationId: candig_rnaget.api.operations.search_expression_filters
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: type
-        in: query
-        description: one of `feature` or `sample` reflecting which axis to request filters for.  If blank, both will be returned
-        required: false
-        type: string
+        - name: type
+          in: query
+          description: one of `feature` or `sample` reflecting which axis to request
+            filters for.  If blank, both will be returned
+          schema:
+            type: string
       responses:
         "200":
           description: successful operation
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/searchFilter'
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/searchFilter"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
-  /expressions/{expressionId}:
+  "/expressions/{expressionId}":
     get:
       tags:
-      - expressions
+        - expressions
       summary: Find expression data by ID
       description: Returns a single specified expression matrix
       operationId: candig_rnaget.api.operations.get_expression_by_id
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: expressionId
-        in: path
-        description: ID of expression to return
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
+        - name: expressionId
+          in: path
+          description: ID of expression to return
+          required: true
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
+          schema:
+            type: string
       responses:
         "200":
           description: successful operation
-          schema:
-            $ref: '#/definitions/file'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/file"
         "400":
           description: Invalid ID supplied
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Expression not found
       security:
-      - api_key: []
-
+        - api_key: []
   /changelog:
     post:
       tags:
-      - changelog
+        - changelog
       operationId: candig_rnaget.api.operations.post_change_log
       summary: Add a change log to the database
       description: Creates and returns a new change log record
-      parameters:
-        - name: change_log_record
-          in: body
-          schema:
-            $ref: '#/definitions/changeLog'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/changeLog"
       responses:
         "201":
           description: New change log created
-          schema:
-            $ref: '#/definitions/changeLog'
           headers:
             Location:
-              type: string
-              format: url
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/changeLog"
         "400":
           description: Change log provided in body does not pass schema validation
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "405":
           description: Forbidden to overwrite change log in post
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: Internal error - change log not created
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /getVersions:
     get:
       tags:
-      - getVersions
+        - getVersions
       summary: Get release versions of database
       operationId: candig_rnaget.api.operations.get_versions
-      produces:
-      - application/xml
-      - application/json
       responses:
         "200":
           description: Successful operation
-          schema:
-            type: array
-            items:
-              type: string
-            additionalProperties:
-              type: string
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  type: string
+                additionalProperties:
+                  type: string
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                additionalProperties:
+                  type: string
         "400":
           description: Invalid tag value
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
-  /changelog/{version}:
+  "/changelog/{version}":
     get:
       tags:
-      - changelog
+        - changelog
       summary: Get change log for a specific release version
       description: Returns changes associated with specified database release version
       operationId: candig_rnaget.api.operations.get_change_log
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: version
-        in: path
-        description: release version
-        x-example: 0.9.3b
-        required: true
-        type: string
+        - name: version
+          in: path
+          description: release version
+          required: true
+          example: 0.9.4
+          schema:
+            type: string
       responses:
         "200":
           description: Successful operation
-          schema:
-            $ref: '#/definitions/changeLog'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/changeLog"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/changeLog"
         "400":
           description: Invalid ID supplied
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Change log not found
       security:
-      - api_key: []
-  /files/{fileID}:
+        - api_key: []
+  "/files/{fileID}":
     get:
       tags:
-      - files
+        - files
       summary: Get specific file
       description: Returns download URL for file
       operationId: candig_rnaget.api.operations.get_file
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: fileID
-        in: path
-        description: file ID
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
+        - name: fileID
+          in: path
+          description: file ID
+          required: true
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
+          schema:
+            type: string
       responses:
         "200":
           description: Successful operation
-          schema:
-            $ref: '#/definitions/file'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/file"
         "400":
           description: Invalid ID supplied
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: File not found
       security:
-      - api_key: []
+        - api_key: []
   /files/search:
     get:
       tags:
-      - files
+        - files
       summary: Search for files matching filters
-      description: Search for files matching filters.  Returns download URL or manifest of download URLs for matching file(s)
+      description: Search for files matching filters.  Returns download URL or manifest of
+        download URLs for matching file(s)
       operationId: candig_rnaget.api.operations.search_files
-      produces:
-      - application/xml
-      - application/json
       parameters:
-      - name: tags
-        in: query
-        description: Comma separated tag list to filter by
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: multi
-      - name: projectID
-        in: query
-        description: ProjectID to filter by
-        required: false
-        type: string
-      - name: studyID
-        in: query
-        description: StudyID to filter by
-        required: false
-        type: string
-      - name: fileType
-        in: query
-        description: File type to filter by
-        required: false
-        type: string
-      responses:
-        "200":
-          description: Successful operation
+        - name: tags
+          in: query
+          description: Comma separated tag list to filter by
+          explode: true
           schema:
             type: array
             items:
-              $ref: '#/definitions/file'
+              type: string
+        - name: projectID
+          in: query
+          description: ProjectID to filter by
+          schema:
+            type: string
+        - name: studyID
+          in: query
+          description: StudyID to filter by
+          schema:
+            type: string
+        - name: fileType
+          in: query
+          description: File type to filter by
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/file"
         "400":
           description: Error
         "403":
           description: Authorisation error
-          schema:
-            $ref: '#/definitions/Error'
+          content:
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       security:
         - api_key: []
-
-  /continuous/{continuousId}:
+  "/continuous/{continuousId}":
     get:
       tags:
-      - continuous
+        - continuous
       summary: Retrieve continuous signal data by ID
       description: Returns a single specified signal matrix
       operationId: candig_rnaget.api.operations.get_continuous_by_id
       parameters:
-      - name: continuousId
-        in: path
-        description: ID of continuous matrix to return
-        x-example: be2ba51c-8dfe-4619-b832-31c4a087a589
-        required: true
-        type: string
-      produces:
-        - application/vnd.loom
-        - application/json
+        - name: continuousId
+          in: path
+          description: ID of continuous matrix to return
+          required: true
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
+          schema:
+            type: string
       responses:
-#        "200":
-#          description: successful operation
-#          schema:
-#            type: file
-#        "400":
-#          description: Invalid ID supplied
-#        "404":
-#          description: Continuous matrix not found
-#        "406":
-#          description: Requested formatting not supported
         "501":
           description: The specified request is not supported by the server
   /continuous/formats:
     get:
       tags:
-      - continuous
+        - continuous
       summary: Get output formats
       description: Returns a list of supported continuous matrix formats
       operationId: candig_rnaget.api.operations.get_continuous_formats
       responses:
-#        "200":
-#          description: successful operation
-#          schema:
-#            type: array
-#            items:
-#              type: string
-#        "404":
-#          description: Format list not found
-#        "406":
-#          description: Requested formatting not supported
         "501":
           description: The specified request is not supported by the server
   /continuous/search:
     get:
       tags:
-      - continuous
+        - continuous
       summary: Search for continuous data matching filters
       description: Search for continuous data matching filters
       operationId: candig_rnaget.api.operations.search_continuous
       parameters:
-      - name: format
-        in: query
-        description: Data format to return
-        x-example: loom
-        required: true
-        type: string
-      - name: tags
-        in: query
-        description: Comma separated tag list to filter by
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: csv
-      - name: sampleIDList
-        in: query
-        description: comma separated list of sampleIDs to match
-        required: false
-        type: array
-        items:
-          type: string
-        collectionFormat: csv
-      - name: projectID
-        in: query
-        description: project to filter by
-        required: false
-        type: string
-      - name: studyID
-        in: query
-        description: study to filter by
-        required: false
-        type: string
-      - name: version
-        in: query
-        description: version to filter by
-        required: false
-        type: string
-      - name: chr
-        in: query
-        description: The refererence to which start and end apply in the form chr? where ? is the specific ID of the chromosome (ex. chr1, chrX).
-        required: false
-        type: string
-      - name: start
-        in: query
-        description: The start position of the range on the sequence, 0-based, inclusive.
-        required: false
-        type: integer
-      - name: end
-        in: query
-        description: The end position of the range on the sequence, 0-based, exclusive.
-        required: false
-        type: integer
+        - name: format
+          in: query
+          description: Data format to return
+          required: true
+          example: loom
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: Comma separated tag list to filter by
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sampleIDList
+          in: query
+          description: comma separated list of sampleIDs to match
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: projectID
+          in: query
+          description: project to filter by
+          schema:
+            type: string
+        - name: studyID
+          in: query
+          description: study to filter by
+          schema:
+            type: string
+        - name: version
+          in: query
+          description: version to filter by
+          schema:
+            type: string
+        - name: chr
+          in: query
+          description: The refererence to which start and end apply in the form chr? where
+            ? is the specific ID of the chromosome (ex. chr1, chrX).
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: The start position of the range on the sequence, 0-based, inclusive.
+          schema:
+            type: integer
+        - name: end
+          in: query
+          description: The end position of the range on the sequence, 0-based, exclusive.
+          schema:
+            type: integer
       responses:
-#        "200":
-#          description: Successful operation
-#          schema:
-#            type: array
-#            items:
-#              $ref: "#/definitions/file"
-#        "400":
-#          description: The requested data format is not supported
-#        "406":
-#          description: Requested formatting not supported
         "501":
           description: The specified request is not supported by the server
-
-definitions:
-  Error:
-    type: object
-    required:
-      - message
-      - code
-    properties:
-      code:
-        type: integer
-        format: int32
-      message:
-        type: string
-  project:
-    type: object
-    properties:
-      id:
-        type: string
-        format: uuid
-      version:
-        type: string
-      tags:
-        type: array
-        items:
+servers:
+  - url: /rnaget
+components:
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: Authorization
+      in: header
+      x-apikeyInfoFunc: candig_rnaget.auth.auth_key
+  schemas:
+    Error:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
           type: string
-      name:
-        type: string
-      description:
-        type: string
-      created:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: project
-  study:
-    type: object
-    properties:
-      id:
-        type: string
-        format: uuid
-      version:
-        type: string
-      tags:
-        type: array
-        items:
+    project:
+      type: object
+      properties:
+        id:
           type: string
-      name:
-        type: string
-      description:
-        type: string
-      parentProjectID:
-        type: string
-        format: uuid
-      patientList:
-        type: array
-        items:
+          format: uuid
+        version:
           type: string
-      sampleList:
-        type: array
-        items:
+        tags:
+          type: array
+          items:
+            type: string
+        name:
           type: string
-      created:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: study
-  expressionsearch:
-    type: object
-    description: Expression search query object
-    properties:
-      version:
-        type: string
-      tags:
-        type: array
-        items:
+          example: test_project
+        description:
           type: string
-      sampleID:
-        type: string
-      projectID:
-        type: string
-        format: uuid
-      studyID:
-        type: string
-        format: uuid
-      featureIDList:
-        type: array
-        items:
+        created:
           type: string
-      featureNameList:
-        type: array
-        items:
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: project
+    study:
+      type: object
+      properties:
+        id:
           type: string
-      minExpression:
-        type: array
-        items:
+          format: uuid
+        version:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        description:
+          type: string
+        parentProjectID:
+          type: string
+          format: uuid
+        patientList:
+          type: array
+          items:
+            type: string
+        sampleList:
+          type: array
+          items:
+            type: string
+        created:
+          type: string
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: study
+    expressionsearch:
+      type: object
+      description: Expression search query object
+      properties:
+        version:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        sampleID:
+          type: string
+        projectID:
+          type: string
+          format: uuid
+          example: be2ba51c-8dfe-4619-b832-31c4a087a589
+        studyID:
+          type: string
+          format: uuid
+        featureIDList:
+          type: array
+          items:
+            type: string
+        featureNameList:
+          type: array
+          items:
+            type: string
+        minExpression:
+          type: array
+          items:
+            type: object
+        maxExpression:
+          type: array
+          items:
+            type: object
+        format:
+          type: string
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: expressionsearch
+    searchFilter:
+      type: object
+      description: parameter name to use for filter when searching
+      properties:
+        fieldType:
+          type: string
+        filter:
+          type: string
+        description:
+          type: string
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: filters
+    changeLog:
+      type: object
+      description: list of changes to the database associated with a version update
+      properties:
+        version:
+          type: string
+          example: 0.9.4
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: changeLog
+    file:
+      type: object
+      description: URL and type for raw data and analysis pipeline files
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        fileType:
+          type: string
+        studyID:
+          type: string
+          format: uuid
+        URL:
+          type: string
+        units:
+          type: string
+        md5:
+          type: string
+        headers:
           type: object
-      maxExpression:
-        type: array
-        items:
-          type: object
-      featureThresholdLabel:
-        type: string
-      format:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: expressionsearch
-  searchFilter:
-    type: object
-    description: parameter name to use for filter when searching
-    properties:
-      fieldType:
-        type: string
-      filter:
-        type: string
-      description:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: filters
-  changeLog:
-    type: object
-    description: list of changes to the database associated with a version update
-    properties:
-      version:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: changeLog
-  file:
-    type: object
-    description: URL and type for raw data and analysis pipeline files
-    properties:
-      id:
-        type: string
-      version:
-        type: string
-      tags:
-        type: array
-        items:
+        created:
           type: string
-      fileType:
-        type: string
-      studyID:
-        type: string
-        format: uuid
-      URL:
-        type: string
-      units:
-        type: string
-      created:
-        type: string
-    externalDocs:
-      description: Find out more
-      url: https://github.com/ga4gh-rnaseq/schema
-    xml:
-      name: file
-
-securityDefinitions:
-#  rna_auth:
-#    type: oauth2
-#    authorizationUrl: http://ga4gh.org/oauth/dialog
-#    flow: implicit
-#    scopes:
-#      read:expression: read expression
-  api_key:
-    type: apiKey
-    name: Authorization
-    in: header
-    x-apikeyInfoFunc: candig_rnaget.auth.auth_key
+      externalDocs:
+        description: Find out more
+        url: https://github.com/ga4gh-rnaseq/schema
+      xml:
+        name: file

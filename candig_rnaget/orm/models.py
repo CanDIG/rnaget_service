@@ -99,6 +99,8 @@ class File(Base):
     URL = Column(String(100), unique=True)
     units = Column(String(10))
     created = Column(DateTime())
+    md5 = Column(String(16))
+    headers = Column(JsonArray())
     __table_args__ = ()
 
 
@@ -110,10 +112,11 @@ class TempFile(Base):
     __filepath__ = Column(String(100))
     id = Column(GUID(), primary_key=True)
     version = Column(String(10))
-    tags = Column(JsonArray())
     fileType = Column(String(10))
     studyID = Column(GUID(), ForeignKey('studies.id'))
     URL = Column(String(100))
     units = Column(String(10))
     created = Column(DateTime())
+    md5 = Column(String(16))
+    headers = Column(JsonArray())
     __table_args__ = ()

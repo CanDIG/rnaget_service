@@ -60,7 +60,7 @@ def test_post_project_conversion_error(test_client):
 
     with context:
         # get id (200)
-        _, code = operations.post_project({'invalidField':123})
+        _, code = operations.post_project({'invalidField': 123})
         assert code == 400
 
 
@@ -150,7 +150,7 @@ def test_post_study_conversion_error(test_client):
 
     with context:
         # get id (200)
-        _, code = operations.post_study({'invalidField':123})
+        _, code = operations.post_study({'invalidField': 123})
         assert code == 400
 
 
@@ -680,27 +680,23 @@ def test_post_search_expressions_name_threshold(test_client):
 
     with context:
         # min Expression feature ID h5 format
-        result, code = operations.post_search_expressions(
-            {
-                'version': Version,
-                'tags': ['test'],
-                'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 0.1},
-                                  {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'version': Version,
+            'tags': ['test'],
+            'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 0.1},
+                              {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
+        })
         assert len(result) == 1
         assert result[0]['fileType'] == 'h5'
         assert code == 200
 
         # min Expression feature no threshold match
-        result, code = operations.post_search_expressions(
-            {
-                'version': Version,
-                'tags': ['test'],
-                'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 1000},
-                                  {'featureID': 'ENSG00000000005', 'threshold': 1000}]
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'version': Version,
+            'tags': ['test'],
+            'minExpression': [{'featureID': 'ENSG00000000003', 'threshold': 1000},
+                              {'featureID': 'ENSG00000000005', 'threshold': 1000}]
+        })
         assert not result
         assert code == 200
 
@@ -713,13 +709,11 @@ def test_post_search_expressions_id_threshold(test_client):
 
     with context:
         # max Expression feature name json format
-        result, code = operations.post_search_expressions(
-            {
-                'format': 'json',
-                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
-                                  {'featureName': 'TNMD', 'threshold': 0.2}]
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'format': 'json',
+            'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
+                              {'featureName': 'TNMD', 'threshold': 0.2}]
+        })
         assert len(result) == 1
         assert result[0]['fileType'] == 'json'
         assert code == 200
@@ -733,23 +727,19 @@ def test_post_search_expressions_error_threshold(test_client):
 
     with context:
         # threshold error
-        result, code = operations.post_search_expressions(
-            {
-                'format': 'json',
-                'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
-                                  {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'format': 'json',
+            'minExpression': [{'featureName': 'TSPAN6', 'threshold': 0.1},
+                              {'featureID': 'ENSG00000000005', 'threshold': 0.2}]
+        })
         assert (code == 400)
 
         # threshold error
-        result, code = operations.post_search_expressions(
-            {
-                'format': 'json',
-                'minExpression': [{'invalid': 'TSPAN6'},
-                                  {'invalid': 'ENSG00000000005', 'threshold': 2.0}]
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'format': 'json',
+            'minExpression': [{'invalid': 'TSPAN6'},
+                              {'invalid': 'ENSG00000000005', 'threshold': 2.0}]
+        })
         assert (code == 400)
 
 
@@ -761,11 +751,9 @@ def test_post_search_expressions_error_uuid(test_client):
 
     with context:
         # uuid error (400)
-        result, code = operations.post_search_expressions(
-            {
-                'studyID': 'not a uuid',
-            }
-        )
+        result, code = operations.post_search_expressions({
+            'studyID': 'not a uuid',
+        })
         assert len(result) == 0
         assert code == 200
 
@@ -934,7 +922,7 @@ def test_post_changelog_errors(test_client):
         assert code == 405
 
         # conversion error
-        _, code = operations.post_project({'invalidField':123})
+        _, code = operations.post_project({'invalidField': 123})
         assert code == 400
 
 
