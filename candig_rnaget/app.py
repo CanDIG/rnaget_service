@@ -57,7 +57,8 @@ def main(args=None):
 
 
 def configure_app():
-    app = connexion.FlaskApp(__name__, server='tornado')
+    app = connexion.FlaskApp(__name__, server='tornado', options={"swagger_url": "/"})
+    app.app.url_map.strict_slashes = False
     api_def = pkg_resources.resource_filename('candig_rnaget',
                                               'api/rnaget.yaml')
     app.add_api(api_def, strict_validation=True, validate_responses=True)
@@ -66,7 +67,7 @@ def configure_app():
 
     @app.app.after_request
     def rewrite_bad_request(response):
-        if response.status_code == 400 and response.data.decode('utf-8').find('"title":') is not None:
+        if response.status_code == 400 and response.data.decode('utf-8').find('"title":') != -1:
             original = json.loads(response.data.decode('utf-8'))
             response.data = json.dumps({'code': 400, 'message': original["detail"]})
             response.headers['Content-Type'] = 'application/json'

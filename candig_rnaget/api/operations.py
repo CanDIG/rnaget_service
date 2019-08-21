@@ -10,14 +10,15 @@ import os
 import json
 import pkg_resources
 import loompy
+import hashlib
 
 from sqlalchemy import or_
 from sqlalchemy import exc
 from candig_rnaget import orm
 from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
-from candig_rnaget.api.models import Error, BasePath, Version
-from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
+from candig_rnaget.api.models import BasePath, Version
+from candig_rnaget.api.exceptions import IdentifierFormatError
 from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
 from candig_rnaget.expression.rnaget_query import SUPPORTED_OUTPUT_FORMATS
 
@@ -37,7 +38,7 @@ def _report_search_failed(typename, exception, **kwargs):
     report = typename + ' search failed'
     message = 'Internal error searching for '+typename+'s'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    return Error(message=message, code=500)
+    return dict(message=message, code=500)
 
 
 def _report_object_exists(typename, **kwargs):
@@ -50,7 +51,7 @@ def _report_object_exists(typename, **kwargs):
     """
     report = typename + 'already exists'
     logger().warning(struct_log(action=report, **kwargs))
-    return Error(message=report, code=405)
+    return dict(message=report, code=405)
 
 
 def _report_conversion_error(typename, exception, **kwargs):
@@ -66,7 +67,7 @@ def _report_conversion_error(typename, exception, **kwargs):
     report = 'Could not convert '+typename+' to ORM model'
     message = typename + ': failed validation - could not convert to internal representation'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    return Error(message=message, code=400)
+    return dict(message=message, code=400)
 
 
 def _report_write_error(typename, exception, **kwargs):
@@ -82,8 +83,22 @@ def _report_write_error(typename, exception, **kwargs):
     report = 'Internal error writing '+typename+' to DB'
     message = typename + ': internal error saving ORM object to DB'
     logger().error(struct_log(action=report, exception=str(exception), **kwargs))
-    err = Error(message=message, code=500)
+    err = dict(message=message, code=500)
     return err
+
+
+def md5(file_path):
+    """
+    Generate md5checksum for an input file
+
+    :param file_path: absolute path to the input file
+    :return: hex digest of the md5 hash
+    """
+    m_hash = hashlib.md5()
+    with open(file_path, "rb") as f:
+        f_bytes = f.read()
+        m_hash.update(f_bytes)
+    return m_hash.hexdigest()
 
 
 @apilog
@@ -101,37 +116,37 @@ def get_project_by_id(projectId):
         specified_project = db_session.query(project)\
             .get(projectId)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not specified_project:
-        err = Error(message="Project not found: "+str(projectId), code=404)
+        err = dict(message="Project not found: "+str(projectId), code=404)
         return err, 404
 
     return orm.dump(specified_project), 200
 
 
 @apilog
-def post_project(project_record):
+def post_project(body):
     db_session = orm.get_session()
 
-    if not project_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        project_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = project_record['id']
+        iid = body['id']
 
-    if not project_record.get('version'):
-        project_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    project_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_project = orm.models.Project(**project_record)
+        orm_project = orm.models.Project(**body)
     except TypeError as e:
-        err = _report_conversion_error('project', e, **project_record)
+        err = _report_conversion_error('project', e, **body)
         return err, 400
 
     try:
@@ -139,17 +154,17 @@ def post_project(project_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('project: '+project_record['id'], **project_record)
+        err = _report_object_exists('project: ' + body['id'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('project', e, **project_record)
+        err = _report_write_error('project', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_project', status='created',
-                             project_id=str(iid), **project_record))
+                             project_id=str(iid), **body))
 
-    return project_record, 201, {'Location': BasePath + '/projects/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/projects/' + str(iid)}
 
 
 @apilog
@@ -203,37 +218,37 @@ def get_study_by_id(studyId):
             .get(studyId)
 
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not specified_study:
-        err = Error(message="Study not found: " + studyId, code=404)
+        err = dict(message="Study not found: " + studyId, code=404)
         return err, 404
 
     return orm.dump(specified_study), 200
 
 
 @apilog
-def post_study(study_record):
+def post_study(body):
     db_session = orm.get_session()
 
-    if not study_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        study_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = study_record['id']
+        iid = body['id']
 
-    if not study_record.get('version'):
-        study_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    study_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_study = orm.models.Study(**study_record)
+        orm_study = orm.models.Study(**body)
     except TypeError as e:
-        err = _report_conversion_error('study', e, **study_record)
+        err = _report_conversion_error('study', e, **body)
         return err, 400
 
     try:
@@ -241,17 +256,17 @@ def post_study(study_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('study: ' + study_record['id'], **study_record)
+        err = _report_object_exists('study: ' + body['id'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('study', e, **study_record)
+        err = _report_write_error('study', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_study', status='created',
-                             project_id=str(iid), **study_record))
+                             project_id=str(iid), **body))
 
-    return study_record, 201, {'Location': BasePath + '/studies/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/studies/' + str(iid)}
 
 
 @apilog
@@ -327,50 +342,51 @@ def get_expression_by_id(expressionId):
         validate_uuid_string('id', expressionId)
         expr_matrix = db_session.query(expression).get(expressionId)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
 
     if not expr_matrix:
-        err = Error(message="Expression matrix not found: " + expressionId, code=404)
+        err = dict(message="Expression matrix not found: " + expressionId, code=404)
         return err, 404
 
     return orm.dump(expr_matrix), 200
 
 
 @apilog
-def post_expression(expression_record):
+def post_expression(body):
     db_session = orm.get_session()
 
-    if expression_record.get('__filepath__'):
-        file_path = expression_record['__filepath__']
+    if body.get('__filepath__'):
+        file_path = body['__filepath__']
         if not os.path.isfile(file_path):
-            err = Error(message="Invalid file path: " + file_path, code=400)
+            err = dict(message="Invalid file path: " + file_path, code=400)
             return err, 400
+        body['md5'] = md5(file_path)
     else:
-        err = Error(message="An absolute __filepath__ is required", code=400)
+        err = dict(message="An absolute __filepath__ is required", code=400)
         return err, 400
 
-    if not expression_record.get('id'):
+    if not body.get('id'):
         iid = uuid.uuid1()
-        expression_record['id'] = iid
+        body['id'] = iid
     else:
-        iid = expression_record['id']
+        iid = body['id']
 
-    if not expression_record.get('version'):
-        expression_record['version'] = Version
+    if not body.get('version'):
+        body['version'] = Version
 
-    if not expression_record.get('URL'):
+    if not body.get('url'):
         base_url = app.config.get('BASE_DL_URL') + BasePath
-        expression_record['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
+        body['url'] = base_url + '/expressions/download/' + os.path.basename(file_path)
 
-    expression_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_expression = orm.models.File(**expression_record)
+        orm_expression = orm.models.File(**body)
     except TypeError as e:
-        err = _report_conversion_error('file', e, **expression_record)
+        err = _report_conversion_error('file', e, **body)
         return err, 400
 
     try:
@@ -378,17 +394,17 @@ def post_expression(expression_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('expression: ' + expression_record['URL'], **expression_record)
+        err = _report_object_exists('expression: ' + body['url'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
-        err = _report_write_error('expression', e, **expression_record)
+        err = _report_write_error('expression', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_expression', status='created',
-                             expression_id=str(iid), **expression_record))
+                             expression_id=str(iid), **body))
 
-    return expression_record, 201, {'Location': BasePath + '/expressions/' + str(iid)}
+    return body, 201, {'Location': BasePath + '/expressions/' + str(iid)}
 
 
 @apilog
@@ -403,14 +419,13 @@ def get_expression_formats():
 
 
 @apilog
-def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=None,
+def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID=None,
                            version=None, featureIDList=None, featureNameList=None,
-                           minExpression=None, maxExpression=None,
-                           featureThresholdLabel="name", format="h5"):
+                           minExpression=None, maxExpression=None, format="h5"):
     """
 
     :param tags: optional Comma separated tag list
-    :param sampleID: optional sample identifier
+    :param sampleIDList: optional list of sample identifiers
     :param projectID: optional project identifier
     :param studyID: optional study identifier
     :param version: optional version
@@ -423,21 +438,25 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
-        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+        if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
             expressions = filter_expression_format(expressions, format)
         else:
+            expressions = filter_expression_format(expressions, format='h5')
+            if minExpression:
+                minExpression = json.loads(','.join(minExpression))
+            if maxExpression:
+                maxExpression = json.loads(','.join(maxExpression))
             responses = []
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
-                        format, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, format
                     )
                     if file_response:
                         responses.append(file_response)
 
-            except (ThresholdValueError, UnsupportedOutputError) as e:
-                err = Error(
+            except (ValueError, UnsupportedOutputError) as e:
+                err = dict(
                     message=str(e),
                     code=400)
                 return err, 400
@@ -456,26 +475,26 @@ def get_search_expressions(tags=None, sampleID=None, projectID=None, studyID=Non
 
 
 @apilog
-def post_search_expressions(expression_search):
+def post_search_expressions(body):
 
     # Parse search object
-    version = expression_search.get("version")
-    tags = expression_search.get("tags")
-    studyID = expression_search.get("studyID")
-    projectID = expression_search.get("projectID")
-    sampleID = expression_search.get("sampleID")
-    featureIDList = expression_search.get("featureIDList")
-    featureNameList = expression_search.get("featureNameList")
-    maxExpression = expression_search.get("maxExpression")
-    minExpression = expression_search.get("minExpression")
+    version = body.get("version")
+    tags = body.get("tags")
+    studyID = body.get("studyID")
+    projectID = body.get("projectID")
+    sampleIDList = body.get("sampleIDList")
+    featureIDList = body.get("featureIDList")
+    featureNameList = body.get("featureNameList")
+    maxExpression = body.get("maxExpression")
+    minExpression = body.get("minExpression")
 
     # If not supplied, set defaults
-    file_type = expression_search.get("format", "h5")
+    file_type = body.get("format", "h5")
 
     try:
         expressions = filter_expression_data(version, tags, studyID, projectID)
 
-        if not any([sampleID, featureIDList, featureNameList, maxExpression, minExpression]):
+        if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
             expressions = filter_expression_format(expressions, format)
         else:
             # H5 queries
@@ -483,14 +502,13 @@ def post_search_expressions(expression_search):
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression,
-                        file_type, threshold_label=None, threshold_input_type='object'
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type
                     )
                     if file_response:
                         responses.append(file_response)
 
-            except (ThresholdValueError, UnsupportedOutputError) as e:
-                err = Error(
+            except (ValueError, UnsupportedOutputError) as e:
+                err = dict(
                     message=str(e),
                     code=400)
                 return err, 400
@@ -516,7 +534,7 @@ def filter_expression_data(version, tags, study_id, project_id):
     expression = orm.models.File
 
     # TODO: find better way to filter for expression data?
-    expressions = db_session.query(expression).filter(expression.fileType == "h5")
+    expressions = db_session.query(expression)
 
     # db queries
     if version:
@@ -546,8 +564,7 @@ def filter_expression_format(expressions, format):
     return expressions.filter(expression.fileType == format)
 
 
-def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExpression, maxExpression, file_type,
-                          threshold_label='name', threshold_input_type='array'):
+def slice_expression_data(expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type):
     """
     Performs the slicing on each expression file
     :param threshold_input_type:
@@ -569,28 +586,11 @@ def slice_expression_data(expr, sampleID, featureIDList, featureNameList, minExp
             feature_map=feature_map
         )
 
-        if sampleID or featureIDList or featureNameList:
-            q = h5query.search(
-                sample_id=sampleID,
-                feature_list_id=featureIDList,
-                feature_list_name=featureNameList
-            )
-        elif minExpression:
-            if threshold_input_type == 'object':
-                if validate_threshold_object(minExpression[0])[0] == 'featureName':
-                    threshold_label = 'name'
-                else:
-                    threshold_label = 'id'
-            threshold_array = convert_threshold_array(minExpression, input_format=threshold_input_type)
-            q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=threshold_label)
+        if minExpression or maxExpression:
+            q = h5query.search_threshold(min_ft=minExpression, max_ft=maxExpression, feature_id_list=featureIDList,
+                                         feature_name_list=featureNameList, samples=sampleIDList)
         else:
-            if threshold_input_type == 'object':
-                if validate_threshold_object(maxExpression[0])[0] == 'featureName':
-                    threshold_label = 'name'
-                else:
-                    threshold_label = 'id'
-            threshold_array = convert_threshold_array(maxExpression, input_format=threshold_input_type)
-            q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=threshold_label)
+            q = h5query.search(samples=sampleIDList, feature_id_list=featureIDList, feature_name_list=featureNameList)
 
         h5query.close()
 
@@ -657,16 +657,16 @@ def get_versions():
 
 
 @apilog
-def post_change_log(change_log_record):
+def post_change_log(body):
     db_session = orm.get_session()
-    change_version = change_log_record.get('version')
+    change_version = body.get('version')
 
-    change_log_record['created'] = datetime.datetime.utcnow()
+    body['created'] = datetime.datetime.utcnow()
 
     try:
-        orm_changelog = orm.models.ChangeLog(**change_log_record)
+        orm_changelog = orm.models.ChangeLog(**body)
     except TypeError as e:
-        err = _report_conversion_error('changelog', e, **change_log_record)
+        err = _report_conversion_error('changelog', e, **body)
         return err, 400
 
     try:
@@ -674,16 +674,16 @@ def post_change_log(change_log_record):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('changelog: ' + change_log_record['version'], **change_log_record)
+        err = _report_object_exists('changelog: ' + body['version'], **body)
         return err, 405
     except orm.ORMException as e:
-        err = _report_write_error('changelog', e, **change_log_record)
+        err = _report_write_error('changelog', e, **body)
         return err, 500
 
     logger().info(struct_log(action='post_change_log', status='created',
-                             change_version=change_version, **change_log_record))
+                             change_version=change_version, **body))
 
-    return change_log_record, 201, {'Location': BasePath + '/changelog/' + change_version}
+    return body, 201, {'Location': BasePath + '/changelog/' + change_version}
 
 
 @apilog
@@ -704,7 +704,7 @@ def get_change_log(version):
         return err, 500
 
     if not log:
-        err = Error(message="Change log not found", code=404)
+        err = dict(message="Change log not found", code=404)
         return err, 404
 
     return orm.dump(log), 200
@@ -724,7 +724,7 @@ def get_file(fileID):
         validate_uuid_string('fileID', fileID)
         file_q = db_session.query(file).get(fileID)
     except IdentifierFormatError as e:
-        err = Error(
+        err = dict(
             message=str(e),
             code=404)
         return err, 404
@@ -733,7 +733,7 @@ def get_file(fileID):
         return err, 500
 
     if not file_q:
-        err = Error(message="File not found: " + fileID, code=404)
+        err = dict(message="File not found: " + fileID, code=404)
         return err, 404
 
     return orm.dump(file_q), 200
@@ -796,7 +796,7 @@ def get_continuous_by_id(continuousId):
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
@@ -808,7 +808,7 @@ def get_continuous_formats():
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
@@ -820,7 +820,7 @@ def search_continuous(format):
     TODO: Implement
     """
 
-    err = Error(
+    err = dict(
         message="Not implemented",
         code=501
     )
@@ -850,63 +850,21 @@ def generate_file_response(results, file_type, file_id, study_id, units):
     else:
         raise ValueError("Invalid file type")
 
+    m_hash = md5(tmp_file_path)
+
     file_record = {
         'id': file_id,
-        'URL': base_url + '/download/' + str(file_id),
+        'url': base_url + '/download/' + str(file_id),
         'studyID': study_id,
         'fileType': file_type,
         'version': Version,
         'units': units,
         'created': datetime.datetime.utcnow(),
+        'md5': m_hash,
         '__filepath__': tmp_file_path
     }
 
     return create_tmp_file_record(file_record)
-
-
-def convert_threshold_array(threshold_input, input_format=None):
-    """
-    query parameter threshold array formatted: Feature,Value,Feature,Value
-    :param threshold_input: query parameter threshold array
-    :param input_format: one of 'array' or 'object'
-    :return: list of feature/threshold tuples or raise error
-    """
-    threshold_output = []
-    try:
-        if input_format == 'array':
-            for i in range(int(len(threshold_input)/2)):
-                threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
-        elif input_format == 'object':
-            feature_label, threshold = list(validate_threshold_object(threshold_input[0]))
-            if not all([threshold, feature_label]):
-                raise ValueError()
-            for threshold_obj in threshold_input:
-                if all(k in threshold_obj for k in ['threshold', feature_label]):
-                    threshold_output.append((threshold_obj[feature_label], threshold_obj['threshold']))
-                else:
-                    raise ValueError("invalid threshold object")
-        else:
-            raise ValueError("input_format must be: 'array' or 'object'")
-    except ValueError as err:
-        raise ThresholdValueError(err) from err
-    else:
-        return threshold_output
-
-
-def validate_threshold_object(threshold_obj):
-    """
-    Ensures the threshold object contains the necessary fields
-    """
-    threshold = threshold_obj.get('threshold')
-
-    if 'featureName' in threshold_obj:
-        feature_label = 'featureName'
-    elif 'featureID' in threshold_obj:
-        feature_label = 'featureID'
-    else:
-        feature_label = None
-
-    return feature_label, threshold
 
 
 def get_expression_file_path(file):
@@ -921,10 +879,10 @@ def get_expression_file_path(file):
     file_url = base_url + '/expressions/download/' + file
 
     try:
-        expr_matrix = db_session.query(expression).filter(expression.URL == file_url).one()
+        expr_matrix = db_session.query(expression).filter(expression.url == file_url).one()
 
     except orm.ORMException as e:
-        err = _report_search_failed('file', e, URL=file_url)
+        err = _report_search_failed('file', e, url=file_url)
         return err, 404
 
     return expr_matrix.__filepath__

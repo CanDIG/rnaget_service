@@ -5,14 +5,6 @@ Custom exceptions for API operations
 """
 
 
-class ThresholdValueError(ValueError):
-    """
-    Custom exception for threshold arrays when passed in as query parameters
-    """
-    def __init__(self, message):
-        super().__init__(message)
-
-
 class IdentifierFormatError(ValueError):
     """
     Custom exception for validation fail on UUID string parameters
