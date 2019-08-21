@@ -549,18 +549,11 @@ paths:
               type: string
         - name: maxExpression
           in: query
-          description: array of feature id, max treshold tuples
+          description: array of feature id, max threshold tuples
           schema:
             type: array
             items:
               type: string
-        - name: featureThresholdLabel
-          in: query
-          description: one of `id` or `name` reflecting what feature label type is being
-            used when applying `maxExpression` or `minExpression`.  If blank,
-            `name` will be assumed.
-          schema:
-            type: string
         - name: format
           in: query
           description: one of `h5` or `loom` or `json`
@@ -1198,7 +1191,7 @@ components:
         studyID:
           type: string
           format: uuid
-        URL:
+        url:
           type: string
         units:
           type: string

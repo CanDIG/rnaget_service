@@ -44,4 +44,4 @@ class GUID(TypeDecorator):  # pylint: disable=abstract-method
         if value is None:
             return value
         else:
-            return uuid.UUID(value)
+            return uuid.UUID(value).hex
