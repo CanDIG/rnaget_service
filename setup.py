@@ -63,7 +63,7 @@ setup(
     data_files=data_files,
     url='https://github.com/CanDIG/rnaget_service',
     download_url='https://github.com/CanDIG/rnaget_service/archive/v0.9.3.tar.gz',
-    version='0.9.3',
+    version='0.9.4',
     zip_safe=False,
     entry_points={
         'console_scripts': [
