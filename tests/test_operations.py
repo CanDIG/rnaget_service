@@ -8,6 +8,7 @@ Tests for ORM module
 import uuid
 import flask
 import os
+import json
 
 from candig_rnaget import orm
 from candig_rnaget.app import app
@@ -85,7 +86,7 @@ def test_get_project_by_id(test_client):
     with context:
         # get id (200)
         result, code = operations.get_project_by_id(sample_project['id'])
-        assert result['id'] == uuid.UUID(sample_project['id'])
+        assert result['id'] == uuid.UUID(sample_project['id']).hex
         assert code == 200
 
         # get id (404)
@@ -106,12 +107,12 @@ def test_search_projects(test_client):
     with context:
         # search by tag
         result, code = operations.search_projects(tags=['test'])
-        assert result[0]['id'] == uuid.UUID(sample_project['id'])
+        assert result[0]['id'] == uuid.UUID(sample_project['id']).hex
         assert code == 200
 
         # search by version
         result, code = operations.search_projects(version=Version)
-        assert result[0]['id'] == uuid.UUID(sample_project['id'])
+        assert result[0]['id'] == uuid.UUID(sample_project['id']).hex
         assert code == 200
 
 
@@ -175,7 +176,7 @@ def test_get_study_by_id(test_client):
     with context:
         # get id (200)
         result, code = operations.get_study_by_id(sample_study['id'])
-        assert result['id'] == uuid.UUID(sample_study['id'])
+        assert result['id'] == uuid.UUID(sample_study['id']).hex
         assert code == 200
 
         # get id (400)
@@ -196,17 +197,17 @@ def test_search_studies(test_client):
     with context:
         # search by tag
         result, code = operations.search_studies(tags=['test'])
-        assert result[0]['id'] == uuid.UUID(sample_study['id'])
+        assert result[0]['id'] == uuid.UUID(sample_study['id']).hex
         assert code == 200
 
         # search by version
         result, code = operations.search_studies(version=Version)
-        assert result[0]['id'] == uuid.UUID(sample_study['id'])
+        assert result[0]['id'] == uuid.UUID(sample_study['id']).hex
         assert code == 200
 
         # search by project
         result, code = operations.search_studies(projectID=sample_project['id'])
-        assert result[0]['id'] == uuid.UUID(sample_study['id'])
+        assert result[0]['id'] == uuid.UUID(sample_study['id']).hex
         assert code == 200
 
         # invalid project ID should be 200 still but give no results
@@ -305,7 +306,7 @@ def test_get_expression_by_id(test_client):
     with context:
         # get id (200)
         result, code = operations.get_expression_by_id(sample_expression['id'])
-        assert result['id'] == uuid.UUID(sample_expression['id'])
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # get id (404)
@@ -339,7 +340,7 @@ def test_get_search_expressions_filter_tag(test_client):
     with context:
         # search by tag
         result, code = operations.get_search_expressions(tags=['test'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -352,7 +353,7 @@ def test_get_search_expressions_filter_version(test_client):
     with context:
         # search by version
         result, code = operations.get_search_expressions(version=Version)
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -365,7 +366,7 @@ def test_get_search_expressions_filter_study(test_client):
     with context:
         # search by studyID
         result, code = operations.get_search_expressions(studyID=sample_study['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -378,7 +379,7 @@ def test_get_search_expressions_filter_project(test_client):
     with context:
         # search by projectID
         result, code = operations.get_search_expressions(projectID=sample_project['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -421,7 +422,7 @@ def test_get_search_expressions_slice_by_sample(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123", "DO221124"], format='json')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
+        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
         assert result[0]['fileType'] == 'json'
         assert code == 200
 
@@ -481,22 +482,25 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
 
     with context:
         # minExpression (200)
+        threshold_query = [{"featureName":"TSPAN6", "threshold":0.1}, {"featureName":"TNMD", "threshold":0.2}]
         result, code = operations.get_search_expressions(
-            minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='json')
+            minExpression=json.dumps(threshold_query).split(","), format='json')
         assert len(result) == 1
         assert result[0]['fileType'] == 'json'
         assert code == 200
 
         # maxExpression (200)
+        threshold_query = [{"featureName":"TSPAN6", "threshold":1.0}, {"featureName":"TNMD", "threshold":2.0}]
         result, code = operations.get_search_expressions(
-            maxExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='json')
+            maxExpression=json.dumps(threshold_query).split(","), format='json')
         assert len(result) == 1
         assert result[0]['fileType'] == 'json'
         assert code == 200
 
         # Threshold value error (400)
+        threshold_query = [{"featureName": "TSPAN6", "threshold": "NotAValue"}, {"featureName": "TNMD", "threshold": 2.0}]
         _, code = operations.get_search_expressions(
-            maxExpression=['TSPAN6', 'NotAValue', 'TNMD', '2.0'], format='json')
+            maxExpression=json.dumps(threshold_query).split(","), format='json')
         assert code == 400
 
 
@@ -514,7 +518,7 @@ def test_get_search_expressions_slice_by_sample_h5(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='h5')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
+        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
         assert result[0]['fileType'] == 'h5'
         assert code == 200
 
@@ -574,13 +578,17 @@ def test_get_search_expressions_slice_by_threshold_h5(test_client):
 
     with context:
         # minExpression (200)
-        result, code = operations.get_search_expressions(minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='h5')
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 0.1}, {"featureName": "TNMD", "threshold": 0.2}]
+        result, code = operations.get_search_expressions(
+            minExpression=json.dumps(threshold_query).split(","), format='h5')
         assert len(result) == 1
         assert result[0]['fileType'] == 'h5'
         assert code == 200
 
         # maxExpression (200)
-        result, code = operations.get_search_expressions(maxExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='h5')
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 1.0}, {"featureName": "TNMD", "threshold": 2.0}]
+        result, code = operations.get_search_expressions(
+            maxExpression=json.dumps(threshold_query).split(","), format='h5')
         assert len(result) == 1
         assert result[0]['fileType'] == 'h5'
         assert code == 200
@@ -600,7 +608,7 @@ def test_get_search_expressions_slice_by_sample_loom(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='loom')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID'])
+        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
         assert result[0]['fileType'] == 'loom'
         assert code == 200
 
@@ -660,13 +668,17 @@ def test_get_search_expressions_slice_by_threshold_loom(test_client):
 
     with context:
         # minExpression (200)
-        result, code = operations.get_search_expressions(minExpression=['TSPAN6', '0.1', 'TNMD', '0.2'], format='loom')
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 0.1}, {"featureName": "TNMD", "threshold": 0.2}]
+        result, code = operations.get_search_expressions(
+            minExpression=json.dumps(threshold_query).split(","), format='loom')
         assert len(result) == 1
         assert result[0]['fileType'] == 'loom'
         assert code == 200
 
         # maxExpression (200)
-        result, code = operations.get_search_expressions(maxExpression=['TSPAN6', '1.0', 'TNMD', '2.0'], format='loom')
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 1.0}, {"featureName": "TNMD", "threshold": 2.0}]
+        result, code = operations.get_search_expressions(
+            maxExpression=json.dumps(threshold_query).split(","), format='loom')
         assert len(result) == 1
         assert result[0]['fileType'] == 'loom'
         assert code == 200
@@ -791,7 +803,7 @@ def test_get_file(test_client):
     with context:
         # get id (200)
         result, code = operations.get_file(sample_expression['id'])
-        assert result['id'] == uuid.UUID(sample_expression['id'])
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # get id (400)
@@ -812,9 +824,9 @@ def test_file_download(test_client):
     with context:
         # get id (200)
         result, code = operations.get_file(sample_expression['id'])
-        assert result['id'] == uuid.UUID(sample_expression['id'])
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
-        filename = result['URL'].split('/')[-1]
+        filename = result['url'].split('/')[-1]
         with app.app.test_request_context():
             response = persistent_download(filename)
             assert response.status_code == 200
@@ -854,17 +866,17 @@ def test_search_files(test_client):
 
         # search by tags (200)
         result, code = operations.search_files(tags=['test'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # search by project (200)
         result, code = operations.search_files(projectID=sample_project['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # search by study (200)
         result, code = operations.search_files(studyID=sample_study['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # search invalid UUID (200)
@@ -873,7 +885,7 @@ def test_search_files(test_client):
 
         # search by file type (200)
         result, code = operations.search_files(fileType='h5')
-        assert result[0]['id'] == uuid.UUID(sample_expression['id'])
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # invalid parameters should still be an empty 200
@@ -1026,7 +1038,7 @@ def load_expression(study_id):
     test_expression = {
         'id': expressionid,
         '__filepath__': sample_file,
-        'URL': url_base+'/expressions/download/'+os.path.basename(sample_file),
+        'url': url_base+'/expressions/download/'+os.path.basename(sample_file),
         'studyID': study_id,
         'version': Version,
         'tags': ['expressions', 'test'],

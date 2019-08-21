@@ -6,6 +6,7 @@ import numpy as np
 import flask
 import pandas as pd
 from collections import OrderedDict
+from operator import le, ge
 
 app = flask.current_app
 SUPPORTED_OUTPUT_FORMATS = ["json", "h5", "loom"]
@@ -123,13 +124,20 @@ class ExpressionQueryTool(object):
             results[self._expression_matrix].attrs["units"] = expression.attrs.get("units")
 
         elif self._output_format == "loom":
-            results["ra"]["Accession"] = np.array(ExpressionQueryTool.decode_h5_array(feature_load))
+            feature_decode = ExpressionQueryTool.decode_h5_array(feature_load)
+            results["ra"]["GeneID"] = np.array(feature_decode)
+            results["ra"]["GeneName"] = np.array(self.accession_to_gene(feature_decode))
             results["matrix"] = np.transpose(sample_expressions)
-            results["ca"]["SampleID"] = np.array(list(indices.keys()))
+            results["ca"]["Sample"] = np.array(list(indices.keys()))
+
+            # TODO: use real values
+            results["ca"]["Condition"] = np.zeros(len(indices))
+            results["ca"]["Tissue"] = np.zeros(len(indices))
 
         return results
 
-    def _search_features(self, feature_list, ft_list=None, ft_type=None, supplementary_feature_label=None):
+    def _search_features(self, feature_list, min_ft=None, max_ft=None,
+                         supplementary_feature_label=None, sample_filter=None):
         """
         feature_list must be a list of gene ID valid to data set
         """
@@ -146,14 +154,7 @@ class ExpressionQueryTool(object):
 
         feature_slices = list(indices.values())
 
-        if ft_list and ft_type:
-            if ft_type == "min":
-                def ft_compare(x, y):
-                    return x > y
-            else:
-                def ft_compare(x, y):
-                    return x <= y
-
+        if min_ft or max_ft:
             if self._output_format == "json":
                 if supplementary_feature_array:
                     results["features"] = ExpressionQueryTool.decode_h5_array(supplementary_feature_array)
@@ -162,18 +163,18 @@ class ExpressionQueryTool(object):
 
             # read slices in to memory as a data frame
             expression_df = pd.DataFrame(expression[:, feature_slices])
+            if sample_filter:
+                sample_indices = self._get_hdf5_indices(self._samples, sample_filter)
+                sample_filter_indices = [sample_indices[x] for x in sample_indices]
+                expression_df = expression_df.iloc[sample_filter_indices, :]
 
-            # slice data frame while samples remain
             index_keys = list(indices.keys())
-            for feature_id, threshold in ft_list:
-                if len(expression_df) > 0:
-                    try:
-                        df_feature_index = index_keys.index(feature_id)
-                        expression_df = expression_df[ft_compare(expression_df[df_feature_index], threshold)]
-                    except ValueError:
-                        continue
-                else:
-                    break
+
+            if min_ft:
+                expression_df = self.apply_threshold(expression_df, min_ft, index_keys, ge)
+
+            if max_ft:
+                expression_df = self.apply_threshold(expression_df, max_ft, index_keys, le)
 
             search_expressions = expression_df.values
             samples_list = [samples[idx].decode() for idx in expression_df.index]
@@ -203,48 +204,51 @@ class ExpressionQueryTool(object):
 
         elif self._output_format == "loom":
             results["matrix"] = np.array(np.transpose(search_expressions))
-            results["ra"]["Accession"] = np.array([feature for feature in indices])
+            feature_decode = [feature for feature in indices]
+            results["ra"]["GeneID"] = np.array(feature_decode)
+            results["ra"]["GeneName"] = np.array(self.accession_to_gene(feature_decode))
+            results["ca"]["Sample"] = np.array(samples_list)
 
-            if supplementary_feature_array:
-                results["ra"]["Gene"] = np.array(supplementary_feature_array)
-            results["ca"]["SampleID"] = np.array(samples_list)
+            # TODO: use real values
+            results["ca"]["Condition"] = np.zeros(len(samples_list))
+            results["ca"]["Tissue"] = np.zeros(len(samples_list))
 
         return results
 
-    def search(self, samples=None, feature_list_id=None, feature_list_accession=None, feature_list_name=None):
+    def search(self, samples=None, feature_id_list=None, feature_accession_list=None, feature_name_list=None):
         """
         General search function. Accepts any combination of the following arguments:
         - sample_id || feature_list_id or feature_list_accession or feature_list_name || sample_id and feature_list
         """
         supplementary_feature_label = {}
 
-        if feature_list_accession or feature_list_name:
-            if feature_list_id or (feature_list_accession and feature_list_name):
+        if feature_accession_list or feature_name_list:
+            if feature_id_list or (feature_accession_list and feature_name_list):
                 raise LookupError("Can't lookup invalid combination of features")
             df = pd.read_csv(self._feature_map, sep='\t')
-            feature_list_id = []
+            feature_id_list = []
 
-            if feature_list_name:
+            if feature_name_list:
                 df_key = 'gene_symbol'
-                feature_list = feature_list_name
+                feature_list = feature_name_list
             else:
                 df_key = 'accession_numbers'
-                feature_list = feature_list_accession
+                feature_list = feature_accession_list
 
             for feature_value in feature_list:
                 df_lookup = df.loc[df[df_key] == feature_value].ensembl_id
                 if len(df_lookup) > 0:
                     gene_id = df_lookup.values[0]
-                    feature_list_id.append(gene_id)
+                    feature_id_list.append(gene_id)
                     supplementary_feature_label[gene_id] = feature_value
 
             for sf in supplementary_feature_label:
                 supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
 
-        if samples and feature_list_id:
+        if samples and feature_id_list:
             expression = self.get_expression_matrix()
             sample_indices = self._get_hdf5_indices(self._samples, samples)
-            feature_indices = self._get_hdf5_indices(self._features, feature_list_id)
+            feature_indices = self._get_hdf5_indices(self._features, feature_id_list)
             results = self._build_results_template(expression)
             supplementary_feature_array = None
 
@@ -275,56 +279,95 @@ class ExpressionQueryTool(object):
 
             elif self._output_format == "loom":
                 results["matrix"] = np.transpose(feature_expressions)
+                feature_decode = [feature for feature in feature_indices]
+                results["ra"]["GeneID"] = np.array(feature_decode)
+                results["ra"]["GeneName"] = np.array(self.accession_to_gene(feature_decode))
+                results["ca"]["Sample"] = np.array(list(sample_indices.keys()))
 
-                results["ra"]["Accession"] = np.array([feature for feature in feature_indices])
-                if supplementary_feature_array:
-                    results["ra"]["Gene"] = np.array(supplementary_feature_array)
-
-                results["ca"]["SampleID"] = np.array(list(sample_indices.keys()))
+                # TODO: use real values
+                results["ca"]["Condition"] = np.zeros(len(sample_indices))
+                results["ca"]["Tissue"] = np.zeros(len(sample_indices))
 
             return results
 
         elif samples:
             return self._search_samples(samples)
 
-        elif feature_list_id:
-            return self._search_features(feature_list_id, supplementary_feature_label=supplementary_feature_label)
+        elif feature_id_list:
+            return self._search_features(feature_id_list, supplementary_feature_label=supplementary_feature_label)
 
         else:
             raise LookupError("No valid features or samples provided")
 
-    def search_threshold(self, ft_list, ft_type="min", feature_label="name"):
-        feature_list = list(zip(*ft_list))[0]
-        supplementary_feature_label = {}
+    def search_threshold(self, min_ft=None, max_ft=None, feature_id_list=None,
+                         feature_name_list=None, samples=None):
 
-        if feature_label in ["id", "name", "accession"]:
-            feature_list_id = []
-            if feature_label == "id":
-                feature_list_id = feature_list
-            else:
-                df = pd.read_csv(self._feature_map, sep='\t')
-                ft_list_id = []
-                if feature_label == "name":
-                    df_key = "gene_symbol"
-                else:
-                    df_key = "accession_numbers"
-                for feature, threshold in ft_list:
-                    df_lookup = df.loc[df[df_key] == feature].ensembl_id
+        if not max_ft and not min_ft:
+            raise ValueError("At least one threshold array is required")
+
+        supplementary_feature_label = {}
+        df = pd.read_csv(self._feature_map, sep='\t')
+        min_threshold_array_id = None
+        min_feature_list = []
+        max_threshold_array_id = None
+        max_feature_list = []
+
+        if min_ft:
+            min_threshold_array = ExpressionQueryTool.convert_threshold_array(min_ft)
+            if ExpressionQueryTool.validate_threshold_object(min_ft[0])[0] == 'featureName':
+                min_threshold_array_id = []
+
+                for feature, threshold in min_threshold_array:
+                    df_lookup = df.loc[df['gene_symbol'] == feature].ensembl_id
                     if len(df_lookup) > 0:
                         gene_id = df_lookup.values[0]
-                        feature_list_id.append(gene_id)
-                        ft_list_id.append((gene_id, threshold))
-                        supplementary_feature_label[gene_id] = feature
+                        min_threshold_array_id.append((gene_id, threshold))
+                        if not feature_id_list and not feature_name_list:
+                            min_feature_list.append(gene_id)
+                            supplementary_feature_label[gene_id] = feature
+            else:
+                min_feature_list = list(zip(*min_threshold_array))[0]
+                min_threshold_array_id = min_threshold_array
 
-                ft_list = ft_list_id
+        if max_ft:
+            max_threshold_array = ExpressionQueryTool.convert_threshold_array(max_ft)
+            if ExpressionQueryTool.validate_threshold_object(max_ft[0])[0] == 'featureName':
+                max_threshold_array_id = []
 
-                for sf in supplementary_feature_label:
-                    supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
+                for feature, threshold in max_threshold_array:
+                    df_lookup = df.loc[df['gene_symbol'] == feature].ensembl_id
+                    if len(df_lookup) > 0:
+                        gene_id = df_lookup.values[0]
+                        max_threshold_array_id.append((gene_id, threshold))
+                        if not feature_id_list and not feature_name_list:
+                            max_feature_list.append(gene_id)
+                            supplementary_feature_label[gene_id] = feature
+            else:
+                max_feature_list = list(zip(*max_threshold_array))[0]
+                max_threshold_array_id = max_threshold_array
+
+        if feature_name_list:
+            feature_list_parsed = self.gene_to_accession(feature_name_list)
+            supplementary_feature_label = dict(zip(feature_list_parsed, feature_name_list))
+        elif feature_id_list:
+            feature_list_parsed = feature_id_list
         else:
-            raise ValueError("Invalid feature label values provided")
+            feature_list_parsed = []
+
+        if not feature_list_parsed:
+            if max_ft and min_ft:
+                feature_list_parsed = list(set(min_feature_list) | set(max_feature_list))
+            elif min_ft:
+                feature_list_parsed = min_feature_list
+            else:
+                feature_list_parsed = max_feature_list
+
+        for sf in supplementary_feature_label:
+            supplementary_feature_label[sf] = supplementary_feature_label[sf].encode('utf-8')
 
         return self._search_features(
-            feature_list_id, ft_list=ft_list, ft_type=ft_type, supplementary_feature_label=supplementary_feature_label
+            feature_list_parsed, min_ft=min_threshold_array_id, max_ft=max_threshold_array_id,
+            supplementary_feature_label=supplementary_feature_label, sample_filter=samples
         )
 
     def _write_hdf5_results(self, results, sample_list, feature_list, expressions,
@@ -409,8 +452,91 @@ class ExpressionQueryTool(object):
 
         return results
 
+    def accession_to_gene(self, feature_list):
+        df = pd.read_csv(self._feature_map, sep='\t')
+        gene_list = []
+        for feature_id in feature_list:
+            df_lookup = df.loc[df['ensembl_id'] == feature_id].gene_symbol
+            if len(df_lookup) > 0:
+                gene_name = df_lookup.values[0]
+                gene_list.append(gene_name)
+            else:
+                gene_list.append(feature_id)
+        return gene_list
+
+    def gene_to_accession(self, feature_list):
+        df = pd.read_csv(self._feature_map, sep='\t')
+        id_list = []
+        for gene_name in feature_list:
+            df_lookup = df.loc[df['gene_symbol'] == gene_name].ensembl_id
+            if len(df_lookup) > 0:
+                accession_id = df_lookup.values[0]
+                id_list.append(accession_id)
+            else:
+                id_list.append(gene_name)
+        return id_list
+
     def close(self):
         self._file.close()
+
+    @staticmethod
+    def apply_threshold(df, thresholds, idx_keys, cmp):
+        """
+
+        :param df: pandas data frame to filter
+        :param thresholds: tuple of thresholds to apply
+        :param idx_keys: feature index mapping
+        :param cmp: comparison function to apply
+        :return: filtered data frame
+        """
+        for feature_id, threshold in thresholds:
+            # slice data frame while samples remain
+            if len(df) > 0:
+                try:
+                    df_feature_index = idx_keys.index(feature_id)
+                    df = df[cmp(df[df_feature_index], threshold)]
+                except ValueError:
+                    continue
+            else:
+                break
+        return df
+
+    @staticmethod
+    def convert_threshold_array(threshold_input):
+        """
+        query parameter threshold array formatted: Feature,Value,Feature,Value
+        :param threshold_input: threshold object array
+        :return: list of feature/threshold tuples or raise error
+        """
+        threshold_output = []
+        feature_label, threshold = list(ExpressionQueryTool.validate_threshold_object(threshold_input[0]))
+        if not all([threshold, feature_label]):
+            raise ValueError("invalid threshold object")
+
+        for threshold_obj in threshold_input:
+            if all(k in threshold_obj for k in ['threshold', feature_label]):
+                threshold_output.append((threshold_obj[feature_label], threshold_obj['threshold']))
+            else:
+                raise ValueError("invalid threshold object")
+        return threshold_output
+
+    @staticmethod
+    def validate_threshold_object(threshold_obj):
+        """
+        Returns a tuple of threshold object values or None if invalid
+        """
+        try:
+            threshold = threshold_obj.get('threshold', '')
+            float(threshold)
+        except ValueError:
+            threshold = None
+        if 'featureName' in threshold_obj:
+            feature_label = 'featureName'
+        elif 'featureID' in threshold_obj:
+            feature_label = 'featureID'
+        else:
+            feature_label = None
+        return feature_label, threshold
 
     @staticmethod
     def decode_h5_array(input_array):

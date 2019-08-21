@@ -18,7 +18,7 @@ from candig_rnaget import orm
 from candig_rnaget.api.logging import apilog, logger
 from candig_rnaget.api.logging import structured_log as struct_log
 from candig_rnaget.api.models import BasePath, Version
-from candig_rnaget.api.exceptions import ThresholdValueError, IdentifierFormatError
+from candig_rnaget.api.exceptions import IdentifierFormatError
 from candig_rnaget.expression.rnaget_query import ExpressionQueryTool, UnsupportedOutputError
 from candig_rnaget.expression.rnaget_query import SUPPORTED_OUTPUT_FORMATS
 
@@ -377,9 +377,9 @@ def post_expression(body):
     if not body.get('version'):
         body['version'] = Version
 
-    if not body.get('URL'):
+    if not body.get('url'):
         base_url = app.config.get('BASE_DL_URL') + BasePath
-        body['URL'] = base_url + '/expressions/download/' + os.path.basename(file_path)
+        body['url'] = base_url + '/expressions/download/' + os.path.basename(file_path)
 
     body['created'] = datetime.datetime.utcnow()
 
@@ -394,7 +394,7 @@ def post_expression(body):
         db_session.commit()
     except exc.IntegrityError:
         db_session.rollback()
-        err = _report_object_exists('expression: ' + body['URL'], **body)
+        err = _report_object_exists('expression: ' + body['url'], **body)
         return err, 405
     except orm.ORMException as e:
         db_session.rollback()
@@ -421,8 +421,7 @@ def get_expression_formats():
 @apilog
 def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID=None,
                            version=None, featureIDList=None, featureNameList=None,
-                           minExpression=None, maxExpression=None,
-                           featureThresholdLabel="name", format="h5"):
+                           minExpression=None, maxExpression=None, format="h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -442,17 +441,21 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
         if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
             expressions = filter_expression_format(expressions, format)
         else:
+            expressions = filter_expression_format(expressions, format='h5')
+            if minExpression:
+                minExpression = json.loads(','.join(minExpression))
+            if maxExpression:
+                maxExpression = json.loads(','.join(maxExpression))
             responses = []
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression,
-                        format, threshold_label=featureThresholdLabel, threshold_input_type='array'
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, format
                     )
                     if file_response:
                         responses.append(file_response)
 
-            except (ThresholdValueError, UnsupportedOutputError) as e:
+            except (ValueError, UnsupportedOutputError) as e:
                 err = dict(
                     message=str(e),
                     code=400)
@@ -499,13 +502,12 @@ def post_search_expressions(body):
             try:
                 for expr in expressions:
                     file_response = slice_expression_data(
-                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression,
-                        file_type, threshold_label=None, threshold_input_type='object'
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type
                     )
                     if file_response:
                         responses.append(file_response)
 
-            except (ThresholdValueError, UnsupportedOutputError) as e:
+            except (ValueError, UnsupportedOutputError) as e:
                 err = dict(
                     message=str(e),
                     code=400)
@@ -532,7 +534,7 @@ def filter_expression_data(version, tags, study_id, project_id):
     expression = orm.models.File
 
     # TODO: find better way to filter for expression data?
-    expressions = db_session.query(expression).filter(expression.fileType == "h5")
+    expressions = db_session.query(expression)
 
     # db queries
     if version:
@@ -562,8 +564,7 @@ def filter_expression_format(expressions, format):
     return expressions.filter(expression.fileType == format)
 
 
-def slice_expression_data(expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type,
-                          threshold_label='name', threshold_input_type='array'):
+def slice_expression_data(expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, file_type):
     """
     Performs the slicing on each expression file
     :param threshold_input_type:
@@ -585,28 +586,11 @@ def slice_expression_data(expr, sampleIDList, featureIDList, featureNameList, mi
             feature_map=feature_map
         )
 
-        if sampleIDList or featureIDList or featureNameList:
-            q = h5query.search(
-                samples=sampleIDList,
-                feature_list_id=featureIDList,
-                feature_list_name=featureNameList
-            )
-        elif minExpression:
-            if threshold_input_type == 'object':
-                if validate_threshold_object(minExpression[0])[0] == 'featureName':
-                    threshold_label = 'name'
-                else:
-                    threshold_label = 'id'
-            threshold_array = convert_threshold_array(minExpression, input_format=threshold_input_type)
-            q = h5query.search_threshold(threshold_array, ft_type='min', feature_label=threshold_label)
+        if minExpression or maxExpression:
+            q = h5query.search_threshold(min_ft=minExpression, max_ft=maxExpression, feature_id_list=featureIDList,
+                                         feature_name_list=featureNameList, samples=sampleIDList)
         else:
-            if threshold_input_type == 'object':
-                if validate_threshold_object(maxExpression[0])[0] == 'featureName':
-                    threshold_label = 'name'
-                else:
-                    threshold_label = 'id'
-            threshold_array = convert_threshold_array(maxExpression, input_format=threshold_input_type)
-            q = h5query.search_threshold(threshold_array, ft_type='max', feature_label=threshold_label)
+            q = h5query.search(samples=sampleIDList, feature_id_list=featureIDList, feature_name_list=featureNameList)
 
         h5query.close()
 
@@ -870,7 +854,7 @@ def generate_file_response(results, file_type, file_id, study_id, units):
 
     file_record = {
         'id': file_id,
-        'URL': base_url + '/download/' + str(file_id),
+        'url': base_url + '/download/' + str(file_id),
         'studyID': study_id,
         'fileType': file_type,
         'version': Version,
@@ -881,51 +865,6 @@ def generate_file_response(results, file_type, file_id, study_id, units):
     }
 
     return create_tmp_file_record(file_record)
-
-
-def convert_threshold_array(threshold_input, input_format=None):
-    """
-    query parameter threshold array formatted: Feature,Value,Feature,Value
-    :param threshold_input: query parameter threshold array
-    :param input_format: one of 'array' or 'object'
-    :return: list of feature/threshold tuples or raise error
-    """
-    threshold_output = []
-    try:
-        if input_format == 'array':
-            for i in range(int(len(threshold_input)/2)):
-                threshold_output.append((threshold_input[2*i], float(threshold_input[2*i+1])))
-        elif input_format == 'object':
-            feature_label, threshold = list(validate_threshold_object(threshold_input[0]))
-            if not all([threshold, feature_label]):
-                raise ValueError()
-            for threshold_obj in threshold_input:
-                if all(k in threshold_obj for k in ['threshold', feature_label]):
-                    threshold_output.append((threshold_obj[feature_label], threshold_obj['threshold']))
-                else:
-                    raise ValueError("invalid threshold object")
-        else:
-            raise ValueError("input_format must be: 'array' or 'object'")
-    except ValueError as err:
-        raise ThresholdValueError(err) from err
-    else:
-        return threshold_output
-
-
-def validate_threshold_object(threshold_obj):
-    """
-    Ensures the threshold object contains the necessary fields
-    """
-    threshold = threshold_obj.get('threshold')
-
-    if 'featureName' in threshold_obj:
-        feature_label = 'featureName'
-    elif 'featureID' in threshold_obj:
-        feature_label = 'featureID'
-    else:
-        feature_label = None
-
-    return feature_label, threshold
 
 
 def get_expression_file_path(file):
@@ -940,10 +879,10 @@ def get_expression_file_path(file):
     file_url = base_url + '/expressions/download/' + file
 
     try:
-        expr_matrix = db_session.query(expression).filter(expression.URL == file_url).one()
+        expr_matrix = db_session.query(expression).filter(expression.url == file_url).one()
 
     except orm.ORMException as e:
-        err = _report_search_failed('file', e, URL=file_url)
+        err = _report_search_failed('file', e, url=file_url)
         return err, 404
 
     return expr_matrix.__filepath__
