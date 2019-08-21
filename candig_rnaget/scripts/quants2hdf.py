@@ -381,7 +381,7 @@ class TSVMatrixLoader(object):
                 chunks=True, dtype="S40"
             )
             samples.attrs["created"] = str(datetime.now())
-            samples[...] = [sample.encode('utf8') for sample in samples_list]
+            samples[...] = [sample.split(',')[0].encode('utf8') for sample in samples_list]
 
             for feature_quant in quantificationReader:
                 # Keep ensembl gene version?
@@ -418,10 +418,10 @@ class TSVMatrixLoader(object):
 
 # some test cases
 if __name__ == "__main__":
-    __OUTPUT_FILE__ = ""
-    __DATA_DIR__ = ""
+    __OUTPUT_FILE__ = "expression.h5"
+    __DATA_DIR__ = "expression.tsv"
     # test_hdf5_expression = KallistoLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
     # test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
     # test_hdf5_expression.build_hdf5()
-    tsv_matrix = TSVMatrixLoader(__OUTPUT_FILE__, __DATA_DIR__, "fpkm", "test")
+    tsv_matrix = TSVMatrixLoader(__OUTPUT_FILE__, __DATA_DIR__, "TPM", "test")
     tsv_matrix.build_hdf5()
