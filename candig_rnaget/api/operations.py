@@ -815,7 +815,19 @@ def get_continuous_formats():
     return err, 501
 
 
-def search_continuous(format):
+def search_continuous(format=None):
+    """
+    TODO: Implement
+    """
+
+    err = dict(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
+def search_continuous_filters():
     """
     TODO: Implement
     """
