@@ -970,7 +970,7 @@ paths:
         - name: format
           in: query
           description: Data format to return
-          required: true
+          required: false
           example: loom
           schema:
             type: string
@@ -1023,6 +1023,16 @@ paths:
           description: The end position of the range on the sequence, 0-based, exclusive.
           schema:
             type: integer
+      responses:
+        "501":
+          description: The specified request is not supported by the server
+  /continuous/search/filters:
+    get:
+      tags:
+        - continuous
+      summary: Returns filters for continuous searches
+      description: Get filters for continuous searches
+      operationId: candig_rnaget.api.operations.search_continuous_filters
       responses:
         "501":
           description: The specified request is not supported by the server
