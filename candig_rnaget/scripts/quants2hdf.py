@@ -7,6 +7,8 @@ import numpy as np
 import csv
 from datetime import datetime
 import os
+import sys
+import argparse
 
 # Preset dimensions for sizable matrices
 __MAX_SAMPLES__ = 2000
@@ -366,7 +368,7 @@ class TSVMatrixLoader(object):
         self._units = units
         self._source_file_type = '.tsv'
 
-    def build_hdf5(self, samples_header_idx=1):
+    def build_hdf5(self, samples_header_idx=2):
         with open(self._input_tsv, "r") as q_file:
             quantificationReader = csv.reader(q_file, delimiter="\t")
             # depends on tsv header?
@@ -416,12 +418,42 @@ class TSVMatrixLoader(object):
         self._file.close()
 
 
-# some test cases
+def handle_params(args=None):
+    if args is None:
+        args = sys.argv[1:]
+
+    parser = argparse.ArgumentParser('Create an RNAGET study record')
+
+    # required arguments
+    parser.add_argument('--input', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--units', required=True)
+    parser.add_argument('--study', required=True)
+    parser.add_argument('--pipeline', required=True)
+
+    args = parser.parse_args(args)
+    input = args.input  # file or directory
+    output = args.output  # expression.h5
+    units = args.units
+    study = args.study
+    input_format = args.pipeline
+
+    load_map = {
+        'kallisto': KallistoLoader,
+        'cufflinks': CufflinksLoader,
+        'rsem': RSEMLoader,
+        'gsc': GSCLoader,
+        'tsv': TSVMatrixLoader
+    }
+
+    if input_format not in load_map:
+        raise ValueError("Input pipeline must be one of: {}".format(
+            ",".join(load_map.keys())
+        ))
+
+    output_matrix = load_map[input_format](output, input, units, study)
+    output_matrix.build_hdf5()
+
+
 if __name__ == "__main__":
-    __OUTPUT_FILE__ = "expression.h5"
-    __DATA_DIR__ = "expression.tsv"
-    # test_hdf5_expression = KallistoLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
-    # test_hdf5_expression = GSCLoader(__OUTPUT_FILE__, __DATA_DIR__, "study x")
-    # test_hdf5_expression.build_hdf5()
-    tsv_matrix = TSVMatrixLoader(__OUTPUT_FILE__, __DATA_DIR__, "TPM", "test")
-    tsv_matrix.build_hdf5()
+    handle_params()
