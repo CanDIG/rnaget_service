@@ -25,7 +25,7 @@ lint: ## check style with flake8
 	flake8 rnaget_service tests
 
 test: ## run tests quickly with the default Python
-	py.test
+	py.test tests/test_operations.py
 
 test-all: ## run tests on every Python version with tox
 	tox
