@@ -197,7 +197,7 @@ def search_project_filters():
     """
     :return: filters for project searches
     """
-    valid_filters = ["tags", "version"]
+    valid_filters = ["version"]
 
     return get_search_filters(valid_filters)
 
@@ -270,7 +270,7 @@ def post_study(body):
 
 
 @apilog
-def search_studies(tags=None, version=None, projectID=None):
+def search_studies(tags=None, version=None):
     """
 
     :param tags: optional list of tags
@@ -288,9 +288,9 @@ def search_studies(tags=None, version=None, projectID=None):
         if tags:
             # return any study that matches at least one tag
             studies = studies.filter(or_(*[study.tags.contains(tag) for tag in tags]))
-        if projectID:
-            validate_uuid_string('projectID', projectID)
-            studies = studies.filter(study.parentProjectID == projectID)
+        # if projectID:
+        #     validate_uuid_string('projectID', projectID)
+        #     studies = studies.filter(study.parentProjectID == projectID)
 
     except IdentifierFormatError as e:
         _report_search_failed('project', e)
@@ -308,7 +308,7 @@ def search_study_filters():
     """
     :return: filters for study searches
     """
-    valid_filters = ["tags", "version", "projectID"]
+    valid_filters = ["version"]
 
     return get_search_filters(valid_filters)
 
@@ -328,8 +328,51 @@ def get_search_filters(valid_filters):
     return response, 200
 
 
+def get_expression_bytes_by_id(expressionId, sampleIDList=None, featureIDList=None, featureNameList=None):
+    """
+    :param expressionId: required identifier
+    :return: a single specified expression matrix
+    """
+    db_session = orm.get_session()
+    expression = orm.models.File
+
+    try:
+        validate_uuid_string('id', expressionId)
+        expr_matrix = db_session.query(expression).get(expressionId)
+
+        if not expr_matrix:
+            err = dict(message="Expression matrix not found: " + expressionId, code=404)
+            return err, 404
+
+        if not any([sampleIDList, featureIDList, featureNameList]):
+            response = flask.send_file(expr_matrix.__filepath__, as_attachment=True)
+            response.direct_passthrough = False
+            return response, 200
+
+        else:
+
+            if expr_matrix.fileType == "loom":
+                h5_filepath = expr_matrix.__filepath__.split(".loom")[0] + ".h5"
+                h5_expr_matrix = db_session.query(expression).filter(expression.__filepath__ == h5_filepath).one()
+
+            file_response = slice_expression_data(
+                h5_expr_matrix, sampleIDList, featureIDList, featureNameList, None, None, 'loom'
+            )
+
+            if file_response:
+                response = flask.send_file(file_response['__filepath__'], as_attachment=True)
+                response.direct_passthrough = False
+                return response, 200
+
+    except IdentifierFormatError as e:
+        err = dict(
+            message=str(e),
+            code=404)
+        return err, 404
+
+
 @apilog
-def get_expression_by_id(expressionId):
+def get_expression_tickets_by_id(expressionId, sampleIDList=None, featureIDList=None, featureNameList=None):
     """
 
     :param expressionId: required identifier
@@ -340,18 +383,34 @@ def get_expression_by_id(expressionId):
 
     try:
         validate_uuid_string('id', expressionId)
+
         expr_matrix = db_session.query(expression).get(expressionId)
+
+        if not expr_matrix:
+            err = dict(message="Expression matrix not found: " + expressionId, code=404)
+            return err, 404
+
+        if not any([sampleIDList, featureIDList, featureNameList]):
+            return orm.dump(expr_matrix), 200
+
+        else:
+
+            if expr_matrix.fileType == "loom":
+                h5_filepath = expr_matrix.__filepath__.split(".loom")[0] + ".h5"
+                h5_expr_matrix = db_session.query(expression).filter(expression.__filepath__ == h5_filepath).one()
+
+            file_response = slice_expression_data(
+                h5_expr_matrix, sampleIDList, featureIDList, featureNameList, None, None, 'loom'
+            )
+
+            if file_response:
+                return file_response, 200
+
     except IdentifierFormatError as e:
         err = dict(
             message=str(e),
             code=404)
         return err, 404
-
-    if not expr_matrix:
-        err = dict(message="Expression matrix not found: " + expressionId, code=404)
-        return err, 404
-
-    return orm.dump(expr_matrix), 200
 
 
 @apilog
@@ -418,6 +477,69 @@ def get_expression_formats():
     return formats, 200
 
 
+def get_search_expressions_bytes(tags=None, sampleIDList=None, projectID=None, studyID=None,
+                           version=None, featureIDList=None, featureNameList=None,
+                           minExpression=None, maxExpression=None, format="h5"):
+    """
+
+    :param tags: optional Comma separated tag list
+    :param sampleIDList: optional list of sample identifiers
+    :param projectID: optional project identifier
+    :param studyID: optional study identifier
+    :param version: optional version
+    :param featureIDList: optional filter by listed feature IDs
+    :param featureNameList: optional filter by listed features
+    :param format: output file type (not a part of schema yet)
+    :return: expression matrices matching filters
+    """
+
+    try:
+        expressions = filter_expression_data(version, tags, studyID, projectID)
+
+        if not any([sampleIDList, featureIDList, featureNameList, maxExpression, minExpression]):
+            expressions = filter_expression_format(expressions, format)
+        else:
+            expressions = filter_expression_format(expressions, format='h5')
+            if minExpression:
+                minExpression = json.loads(','.join(minExpression))
+            if maxExpression:
+                maxExpression = json.loads(','.join(maxExpression))
+            responses = []
+
+            try:
+                for expr in expressions:
+                    file_response = slice_expression_data(
+                        expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, format
+                    )
+
+                    if file_response:
+                        response = flask.send_file(file_response['__filepath__'], as_attachment=True)
+                        response.direct_passthrough = False
+                        return response, 200
+
+            except (ValueError, UnsupportedOutputError) as e:
+                err = dict(
+                    message=str(e),
+                    code=400)
+                return err, 400
+
+            if len(responses) > 0:
+                return responses[0], 200
+
+    except IdentifierFormatError as e:
+        _report_search_failed('expression', e)
+        return [], 200
+
+    except orm.ORMException as e:
+        err = _report_search_failed('expression', e)
+        return err, 500
+
+    filepath = get_expression_file_path_by_id([orm.dump(expr_matrix) for expr_matrix in expressions][0]['id'])
+
+    response = flask.send_file(filepath, as_attachment=True)
+    response.direct_passthrough = False
+    return response, 200
+
 @apilog
 def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID=None,
                            version=None, featureIDList=None, featureNameList=None,
@@ -453,7 +575,7 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
                         expr, sampleIDList, featureIDList, featureNameList, minExpression, maxExpression, format
                     )
                     if file_response:
-                        responses.append(file_response)
+                        return file_response, 200
 
             except (ValueError, UnsupportedOutputError) as e:
                 err = dict(
@@ -461,7 +583,8 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
                     code=400)
                 return err, 400
 
-            return responses, 200
+            if len(responses) > 0:
+                return responses[0], 200
 
     except IdentifierFormatError as e:
         _report_search_failed('expression', e)
@@ -471,7 +594,7 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
         err = _report_search_failed('expression', e)
         return err, 500
 
-    return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
+    return [orm.dump(expr_matrix) for expr_matrix in expressions][0], 200
 
 
 @apilog
@@ -839,6 +962,42 @@ def search_continuous_filters():
     return err, 501
 
 
+def get_search_continuousId_ticket(continuousId=None):
+    """
+    TODO: Implement
+    """
+
+    err = dict(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
+def get_search_continuousId_bytes(continuousId=None):
+    """
+    TODO: Implement
+    """
+
+    err = dict(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
+def get_search_continuous_bytes():
+    """
+    TODO: Implement
+    """
+
+    err = dict(
+        message="Not implemented",
+        code=501
+    )
+    return err, 501
+
+
 def generate_file_response(results, file_type, file_id, study_id, units):
     base_url = app.config.get('BASE_DL_URL') + BasePath
     tmp_dir = app.config.get('TMP_DIRECTORY')
@@ -879,6 +1038,25 @@ def generate_file_response(results, file_type, file_id, study_id, units):
     return create_tmp_file_record(file_record)
 
 
+def get_expression_file_path_by_id(file_id):
+    """
+
+    :param expressionId: required identifier
+    :return: internal expression matrix filepath
+    """
+    db_session = orm.get_session()
+    file = orm.models.File
+
+    try:
+        file = db_session.query(file).filter(file.id == file_id).one()
+
+    except orm.ORMException as e:
+        err = _report_search_failed('file', e, id=file_id)
+        return err, 404
+
+    return file.__filepath__
+
+
 def get_expression_file_path(file):
     """
 
@@ -909,7 +1087,7 @@ def create_tmp_file_record(file_record):
         err = _report_conversion_error('file', e, **file_record)
         return err, 400
 
-    del file_record['__filepath__']
+    # del file_record['__filepath__']
 
     try:
         db_session.add(orm_expression)

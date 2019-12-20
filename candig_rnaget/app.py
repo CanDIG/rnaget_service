@@ -32,6 +32,8 @@ def main(args=None):
 
     # set up the local application
     app.app.config['BASE_DL_URL'] = 'http://'+str(args.host)+':'+str(args.port)
+
+    # TODO: Clarify that absolute path is needed for flask.sendfile to work
     app.app.config['TMP_DIRECTORY'] = args.tmpdata
 
     define("dbfile", default=args.database)
@@ -61,7 +63,9 @@ def configure_app():
     app.app.url_map.strict_slashes = False
     api_def = pkg_resources.resource_filename('candig_rnaget',
                                               'api/rnaget.yaml')
-    app.add_api(api_def, strict_validation=True, validate_responses=True)
+
+    # validate_response needs to be False due to a bug from connexion that assumes response is json when this is True
+    app.add_api(api_def, strict_validation=True, validate_responses=False)
     app.add_url_rule(BasePath + '/expressions/download/<file>', 'persistent', persistent_download)
     app.add_url_rule(BasePath + '/download/<token>', 'tmp', tmp_download)
 
