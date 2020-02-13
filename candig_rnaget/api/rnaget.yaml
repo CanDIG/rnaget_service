@@ -105,6 +105,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/error"
   /projects:
+    post:
+      tags:
+        - projects
+      operationId: candig_rnaget.api.operations.post_project
+      summary: Add a project to the database
+      description: Creates and returns a new project record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/project"
+      responses:
+        "201":
+          description: New project created
+          headers:
+            Location:
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
+        "400":
+          description: Project provided in body does not pass schema validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Authorisation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "405":
+          description: Forbidden to overwrite project in post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error - project not created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - api_key: []
     get:
       tags:
         - projects
@@ -220,6 +269,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/error"
   /studies:
+    post:
+      tags:
+        - studies
+      operationId: candig_rnaget.api.operations.post_study
+      summary: Add a study to the database
+      description: Creates and returns a new study record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/study"
+      responses:
+        "201":
+          description: New study created
+          headers:
+            Location:
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/study"
+        "400":
+          description: Project provided in body does not pass schema validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Authorisation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "405":
+          description: Forbidden to overwrite project in post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error - project not created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     get:
       tags:
         - studies
@@ -289,6 +385,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/error"
+  /expressions:
+    post:
+      tags:
+        - expressions
+      operationId: candig_rnaget.api.operations.post_expression
+      summary: Create an expression database entry and map to quant file
+      description: Creates and returns a new expression record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ticket"
+      responses:
+        "201":
+          description: New expression created
+          headers:
+            Location:
+              schema:
+                type: string
+                format: url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ticket"
+        "400":
+          description: Expression provided in body does not pass schema validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Authorisation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "405":
+          description: Forbidden to overwrite expression in post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error - expression not created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   "/expressions/{expressionId}/ticket":
     get:
       tags:
@@ -900,6 +1044,17 @@ components:
       in: header
       x-apikeyInfoFunc: candig_rnaget.auth.auth_key
   schemas:
+    Error:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
     project:
       type: object
       description: The project is the top level of the model hierarchy and contains one or more studies.
@@ -911,7 +1066,7 @@ components:
         version:
           type: string
           description: Version number of the object
-          example: 1.0
+          example: "1.0"
         name:
           type: string
           description: Short, readable name
@@ -936,7 +1091,7 @@ components:
         version:
           type: string
           description: Version number of the object
-          example: 1.0
+          example: "1.0"
         name:
           type: string
           description: Short, readable name
@@ -992,7 +1147,7 @@ components:
         version:
           type: string
           description: Version number of the object
-          example: 1.0
+          example: "1.0"
         fileType:
           type: string
           description: "Type of file. Examples include: loom, tsv"
