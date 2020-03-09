@@ -295,16 +295,16 @@ def test_get_expression_by_id(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.get_expression_bytes_by_id(sample_expression['id'])
+        result, code = operations.get_expression_tickets_by_id(sample_expression['id'])
         assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # get id (404)
-        result, code = operations.get_expression_bytes_by_id("not a uuid")
+        result, code = operations.get_expression_tickets_by_id("not a uuid")
         assert code == 404
 
         # get id (404)
-        result, code = operations.get_expression_bytes_by_id(str(uuid.uuid1()))
+        result, code = operations.get_expression_tickets_by_id(str(uuid.uuid1()))
         assert code == 404
 
 
@@ -412,8 +412,8 @@ def test_get_search_expressions_slice_by_sample(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123", "DO221124"], format='json')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'json'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'json'
         assert code == 200
 
 
@@ -508,8 +508,8 @@ def test_get_search_expressions_slice_by_sample_h5(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='h5')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'h5'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'h5'
         assert code == 200
 
 
@@ -598,8 +598,8 @@ def test_get_search_expressions_slice_by_sample_loom(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='loom')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'loom'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'loom'
         assert code == 200
 
 

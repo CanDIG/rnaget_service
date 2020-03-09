@@ -577,6 +577,8 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
                     )
                     if file_response:
                         return file_response, 200
+                    else:
+                        return [], 200
 
             except (ValueError, UnsupportedOutputError) as e:
                 err = dict(
