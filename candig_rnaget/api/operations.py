@@ -478,8 +478,8 @@ def get_expression_formats():
 
 
 def get_search_expressions_bytes(tags=None, sampleIDList=None, projectID=None, studyID=None,
-                           version=None, featureIDList=None, featureNameList=None,
-                           minExpression=None, maxExpression=None, format="h5"):
+                                 version=None, featureIDList=None, featureNameList=None,
+                                 minExpression=None, maxExpression=None, format="h5"):
     """
 
     :param tags: optional Comma separated tag list
@@ -539,6 +539,7 @@ def get_search_expressions_bytes(tags=None, sampleIDList=None, projectID=None, s
     response = flask.send_file(filepath, as_attachment=True)
     response.direct_passthrough = False
     return response, 200
+
 
 @apilog
 def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID=None,
@@ -1012,7 +1013,7 @@ def generate_file_response(results, file_type, file_id, study_id, units):
 
     elif file_type == "h5":
         tmp_file_path = results.filename
-        results.close() # writes temp file to disk
+        results.close()  # writes temp file to disk
 
     elif file_type == "loom":
         tmp_file_path = results["filename"]

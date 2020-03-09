@@ -16,4 +16,4 @@ _SPEC_DICT = yaml.safe_load(open(_API_DEF, 'r'))
 _SWAGGER_SPEC = create_spec(_SPEC_DICT, spec_url='api/rnaget.yaml')
 
 BasePath = _SWAGGER_SPEC.servers[0].url
-Version = _SWAGGER_SPEC.info.version # pylint:disable=invalid-name
+Version = _SWAGGER_SPEC.info.version  # pylint:disable=invalid-name
