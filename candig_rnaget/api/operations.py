@@ -594,7 +594,7 @@ def get_search_expressions(tags=None, sampleIDList=None, projectID=None, studyID
         err = _report_search_failed('expression', e)
         return err, 500
 
-    return [orm.dump(expr_matrix) for expr_matrix in expressions][0], 200
+    return [orm.dump(expr_matrix) for expr_matrix in expressions], 200
 
 
 @apilog
@@ -1086,8 +1086,6 @@ def create_tmp_file_record(file_record):
     except TypeError as e:
         err = _report_conversion_error('file', e, **file_record)
         return err, 400
-
-    # del file_record['__filepath__']
 
     try:
         db_session.add(orm_expression)
