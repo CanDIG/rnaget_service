@@ -123,7 +123,7 @@ def test_search_project_filters(test_client):
     context = test_client[3]
 
     with context:
-        valid_filters = ["tags", "version"]
+        valid_filters = ["version"]
         result, code = operations.search_project_filters()
         assert len(result) == len(valid_filters)
         assert code == 200
@@ -205,16 +205,6 @@ def test_search_studies(test_client):
         assert result[0]['id'] == uuid.UUID(sample_study['id']).hex
         assert code == 200
 
-        # search by project
-        result, code = operations.search_studies(projectID=sample_project['id'])
-        assert result[0]['id'] == uuid.UUID(sample_study['id']).hex
-        assert code == 200
-
-        # invalid project ID should be 200 still but give no results
-        result, code = operations.search_studies(projectID='9999999999')
-        assert not result
-        assert code == 200
-
 
 def test_search_study_filters(test_client):
     """
@@ -223,7 +213,7 @@ def test_search_study_filters(test_client):
     context = test_client[3]
 
     with context:
-        valid_filters = ["tags", "version", "projectID"]
+        valid_filters = ["version"]
         result, code = operations.search_study_filters()
         assert len(result) == len(valid_filters)
         assert code == 200
@@ -305,16 +295,16 @@ def test_get_expression_by_id(test_client):
 
     with context:
         # get id (200)
-        result, code = operations.get_expression_by_id(sample_expression['id'])
+        result, code = operations.get_expression_tickets_by_id(sample_expression['id'])
         assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
         # get id (404)
-        result, code = operations.get_expression_by_id("not a uuid")
+        result, code = operations.get_expression_tickets_by_id("not a uuid")
         assert code == 404
 
         # get id (404)
-        result, code = operations.get_expression_by_id(str(uuid.uuid1()))
+        result, code = operations.get_expression_tickets_by_id(str(uuid.uuid1()))
         assert code == 404
 
 
@@ -327,7 +317,7 @@ def test_get_search_expressions_filter_basic(test_client):
     with context:
         # basic query (200)
         result, code = operations.get_search_expressions()
-        assert len(result) == 1
+        assert len(result) == 9
         assert code == 200
 
 
@@ -340,7 +330,7 @@ def test_get_search_expressions_filter_tag(test_client):
     with context:
         # search by tag
         result, code = operations.get_search_expressions(tags=['test'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -353,7 +343,7 @@ def test_get_search_expressions_filter_version(test_client):
     with context:
         # search by version
         result, code = operations.get_search_expressions(version=Version)
-        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -366,7 +356,7 @@ def test_get_search_expressions_filter_study(test_client):
     with context:
         # search by studyID
         result, code = operations.get_search_expressions(studyID=sample_study['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -379,7 +369,7 @@ def test_get_search_expressions_filter_project(test_client):
     with context:
         # search by projectID
         result, code = operations.get_search_expressions(projectID=sample_project['id'])
-        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -422,8 +412,8 @@ def test_get_search_expressions_slice_by_sample(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123", "DO221124"], format='json')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'json'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'json'
         assert code == 200
 
 
@@ -437,10 +427,10 @@ def test_get_search_expressions_slice_by_feature_id_json(test_client):
         # feature ID list (200)
         result, code = operations.get_search_expressions(
             featureIDList=['ENSG00000000003', 'ENSG00000000005'], format='json')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'json'
+        assert len(result) == 9
+        assert result['fileType'] == 'json'
         assert code == 200
-        tmp_id = result[0]['id']
+        tmp_id = result['id']
         tmp_response = tmp_download(str(tmp_id))
         assert tmp_response.status_code == 200
 
@@ -454,8 +444,8 @@ def test_get_search_expressions_slice_by_feature_name_json(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(featureNameList=['TSPAN6', 'TNMD'], format='json')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'json'
+        assert len(result) == 9
+        assert result['fileType'] == 'json'
         assert code == 200
 
 
@@ -469,8 +459,8 @@ def test_get_search_expressions_slice_by_feature_sample_json(test_client):
         # feature name list (200)
         result, code = operations.get_search_expressions(
             featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='json')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'json'
+        assert len(result) == 9
+        assert result['fileType'] == 'json'
         assert code == 200
 
 
@@ -485,16 +475,16 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
         threshold_query = [{"featureName":"TSPAN6", "threshold":0.1}, {"featureName":"TNMD", "threshold":0.2}]
         result, code = operations.get_search_expressions(
             minExpression=json.dumps(threshold_query).split(","), format='json')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'json'
+        assert len(result) == 9
+        assert result['fileType'] == 'json'
         assert code == 200
 
         # maxExpression (200)
         threshold_query = [{"featureName":"TSPAN6", "threshold":1.0}, {"featureName":"TNMD", "threshold":2.0}]
         result, code = operations.get_search_expressions(
             maxExpression=json.dumps(threshold_query).split(","), format='json')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'json'
+        assert len(result) == 9
+        assert result['fileType'] == 'json'
         assert code == 200
 
         # Threshold value error (400)
@@ -518,8 +508,8 @@ def test_get_search_expressions_slice_by_sample_h5(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='h5')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'h5'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'h5'
         assert code == 200
 
 
@@ -533,10 +523,10 @@ def test_get_search_expressions_slice_by_feature_id_h5(test_client):
         # feature ID list (200)
         result, code = operations.get_search_expressions(
             featureIDList=['ENSG00000000003', 'ENSG00000000005'], format='h5')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'h5'
+        assert len(result) == 9
+        assert result['fileType'] == 'h5'
         assert code == 200
-        tmp_id = result[0]['id']
+        tmp_id = result['id']
         with app.app.test_request_context():
             response = tmp_download(str(tmp_id))
             assert response.status_code == 200
@@ -551,7 +541,7 @@ def test_get_search_expressions_slice_by_feature_name_h5(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(featureNameList=['TSPAN6', 'TNMD'], format='h5')
-        assert len(result) == 1
+        assert len(result) == 9
         assert code == 200
 
 
@@ -565,8 +555,8 @@ def test_get_search_expressions_slice_by_feature_sample_h5(test_client):
         # feature name list (200)
         result, code = operations.get_search_expressions(
             featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='h5')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'h5'
+        assert len(result) == 9
+        assert result['fileType'] == 'h5'
         assert code == 200
 
 
@@ -581,16 +571,16 @@ def test_get_search_expressions_slice_by_threshold_h5(test_client):
         threshold_query = [{"featureName": "TSPAN6", "threshold": 0.1}, {"featureName": "TNMD", "threshold": 0.2}]
         result, code = operations.get_search_expressions(
             minExpression=json.dumps(threshold_query).split(","), format='h5')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'h5'
+        assert len(result) == 9
+        assert result['fileType'] == 'h5'
         assert code == 200
 
         # maxExpression (200)
         threshold_query = [{"featureName": "TSPAN6", "threshold": 1.0}, {"featureName": "TNMD", "threshold": 2.0}]
         result, code = operations.get_search_expressions(
             maxExpression=json.dumps(threshold_query).split(","), format='h5')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'h5'
+        assert len(result) == 9
+        assert result['fileType'] == 'h5'
         assert code == 200
 
 
@@ -608,8 +598,8 @@ def test_get_search_expressions_slice_by_sample_loom(test_client):
 
         # valid sample id (200)
         result, code = operations.get_search_expressions(sampleIDList=["DO221123"], format='loom')
-        assert result[0]['studyID'] == uuid.UUID(sample_expression['studyID']).hex
-        assert result[0]['fileType'] == 'loom'
+        assert result['studyID'] == uuid.UUID(sample_expression['studyID']).hex
+        assert result['fileType'] == 'loom'
         assert code == 200
 
 
@@ -623,10 +613,10 @@ def test_get_search_expressions_slice_by_feature_id_loom(test_client):
         # feature ID list (200)
         result, code = operations.get_search_expressions(
             featureIDList=['ENSG00000000003', 'ENSG00000000005'], format='loom')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'loom'
+        assert len(result) == 9
+        assert result['fileType'] == 'loom'
         assert code == 200
-        tmp_id = result[0]['id']
+        tmp_id = result['id']
         with app.app.test_request_context():
             response = tmp_download(str(tmp_id))
             assert response.status_code == 200
@@ -641,7 +631,7 @@ def test_get_search_expressions_slice_by_feature_name_loom(test_client):
     with context:
         # feature name list (200)
         result, code = operations.get_search_expressions(featureNameList=['TSPAN6', 'TNMD'], format='loom')
-        assert len(result) == 1
+        assert len(result) == 9
         assert code == 200
 
 
@@ -655,8 +645,8 @@ def test_get_search_expressions_slice_by_feature_sample_loom(test_client):
         # feature name list (200)
         result, code = operations.get_search_expressions(
             featureNameList=['TSPAN6', 'TNMD'], sampleIDList=['DO221123'], format='loom')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'loom'
+        assert len(result) == 9
+        assert result['fileType'] == 'loom'
         assert code == 200
 
 
@@ -671,16 +661,16 @@ def test_get_search_expressions_slice_by_threshold_loom(test_client):
         threshold_query = [{"featureName": "TSPAN6", "threshold": 0.1}, {"featureName": "TNMD", "threshold": 0.2}]
         result, code = operations.get_search_expressions(
             minExpression=json.dumps(threshold_query).split(","), format='loom')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'loom'
+        assert len(result) == 9
+        assert result['fileType'] == 'loom'
         assert code == 200
 
         # maxExpression (200)
         threshold_query = [{"featureName": "TSPAN6", "threshold": 1.0}, {"featureName": "TNMD", "threshold": 2.0}]
         result, code = operations.get_search_expressions(
             maxExpression=json.dumps(threshold_query).split(","), format='loom')
-        assert len(result) == 1
-        assert result[0]['fileType'] == 'loom'
+        assert len(result) == 9
+        assert result['fileType'] == 'loom'
         assert code == 200
 
 

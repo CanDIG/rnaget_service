@@ -73,7 +73,7 @@ def download_file(token, temp_file=False):
         return response
 
     except (orm.ORMException, FileNotFoundError):
-        message="Something went wrong while generating your file. Please try again or contact alipski@bcgsc.ca"
+        message = "Something went wrong while generating your file. Please try again or contact alipski@bcgsc.ca"
         return download_error(message, 500)
 
 
