@@ -317,7 +317,7 @@ def test_get_search_expressions_filter_basic(test_client):
     with context:
         # basic query (200)
         result, code = operations.get_search_expressions()
-        assert len(result) == 9
+        assert len(result) == 1
         assert code == 200
 
 
@@ -330,7 +330,7 @@ def test_get_search_expressions_filter_tag(test_client):
     with context:
         # search by tag
         result, code = operations.get_search_expressions(tags=['test'])
-        assert result['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -343,7 +343,7 @@ def test_get_search_expressions_filter_version(test_client):
     with context:
         # search by version
         result, code = operations.get_search_expressions(version=Version)
-        assert result['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -356,7 +356,7 @@ def test_get_search_expressions_filter_study(test_client):
     with context:
         # search by studyID
         result, code = operations.get_search_expressions(studyID=sample_study['id'])
-        assert result['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
@@ -369,7 +369,7 @@ def test_get_search_expressions_filter_project(test_client):
     with context:
         # search by projectID
         result, code = operations.get_search_expressions(projectID=sample_project['id'])
-        assert result['id'] == uuid.UUID(sample_expression['id']).hex
+        assert result[0]['id'] == uuid.UUID(sample_expression['id']).hex
         assert code == 200
 
 
