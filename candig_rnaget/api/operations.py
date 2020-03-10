@@ -288,9 +288,6 @@ def search_studies(tags=None, version=None):
         if tags:
             # return any study that matches at least one tag
             studies = studies.filter(or_(*[study.tags.contains(tag) for tag in tags]))
-        # if projectID:
-        #     validate_uuid_string('projectID', projectID)
-        #     studies = studies.filter(study.parentProjectID == projectID)
 
     except IdentifierFormatError as e:
         _report_search_failed('project', e)
