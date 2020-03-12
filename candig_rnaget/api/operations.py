@@ -926,16 +926,13 @@ def get_continuous_by_id(continuousId):
     return err, 501
 
 
+@apilog
 def get_continuous_formats():
     """
-    TODO: Implement
+    :return: array of supported data formats
     """
-
-    err = dict(
-        message="Not implemented",
-        code=501
-    )
-    return err, 501
+    formats = ["tsv"]
+    return formats, 200
 
 
 def search_continuous(format=None):
@@ -952,14 +949,16 @@ def search_continuous(format=None):
 
 def search_continuous_filters():
     """
-    TODO: Implement
+    :return: filters for continuous searches
     """
+    filter_file = pkg_resources.resource_filename("candig_rnaget", "orm/filters_continuous.json")
 
-    err = dict(
-        message="Not implemented",
-        code=501
-    )
-    return err, 501
+    with open(filter_file, "r") as ef:
+        continuos_filters = json.load(ef)
+
+    response = [continuos_filters]
+
+    return response, 200
 
 
 def get_search_continuousId_ticket(continuousId=None):

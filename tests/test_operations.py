@@ -472,7 +472,7 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
 
     with context:
         # minExpression (200)
-        threshold_query = [{"featureName":"TSPAN6", "threshold":0.1}, {"featureName":"TNMD", "threshold":0.2}]
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 0.1}, {"featureName": "TNMD", "threshold": 0.2}]
         result, code = operations.get_search_expressions(
             minExpression=json.dumps(threshold_query).split(","), format='json')
         assert len(result) == 9
@@ -480,7 +480,7 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
         assert code == 200
 
         # maxExpression (200)
-        threshold_query = [{"featureName":"TSPAN6", "threshold":1.0}, {"featureName":"TNMD", "threshold":2.0}]
+        threshold_query = [{"featureName": "TSPAN6", "threshold": 1.0}, {"featureName": "TNMD", "threshold": 2.0}]
         result, code = operations.get_search_expressions(
             maxExpression=json.dumps(threshold_query).split(","), format='json')
         assert len(result) == 9
@@ -488,7 +488,8 @@ def test_get_search_expressions_slice_by_threshold_json(test_client):
         assert code == 200
 
         # Threshold value error (400)
-        threshold_query = [{"featureName": "TSPAN6", "threshold": "NotAValue"}, {"featureName": "TNMD", "threshold": 2.0}]
+        threshold_query = [{"featureName": "TSPAN6", "threshold": "NotAValue"},
+                           {"featureName": "TNMD", "threshold": 2.0}]
         _, code = operations.get_search_expressions(
             maxExpression=json.dumps(threshold_query).split(","), format='json')
         assert code == 400
@@ -928,6 +929,29 @@ def test_post_changelog_errors(test_client):
         assert code == 400
 
 
+def test_search_continuous_filters(test_client):
+    """
+    search_continuous_filters
+    """
+    context = test_client[3]
+
+    with context:
+        response, code = operations.search_continuous_filters()
+        assert response[0]['filter'] == "version"
+
+
+def test_get_continous_format(test_client):
+    """
+    get_continuous_formats
+    """
+    context = test_client[3]
+
+    with context:
+        response, code = operations.get_continuous_formats()
+        assert code == 200
+        assert response[0] == "tsv"
+
+
 def test_continuous(test_client):
     """
     TODO: continuous endpoints are not yet supported. All should return 501 for now
@@ -936,9 +960,6 @@ def test_continuous(test_client):
 
     with context:
         _, code = operations.get_continuous_by_id('be2ba51c-8dfe-4619-b832-31c4a087a589')
-        assert code == 501
-
-        _, code = operations.get_continuous_formats()
         assert code == 501
 
         _, code = operations.search_continuous('loom')
