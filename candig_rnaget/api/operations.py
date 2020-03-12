@@ -951,7 +951,7 @@ def search_continuous_filters():
     """
     :return: filters for continuous searches
     """
-    filter_file = pkg_resources.resource_filename("candig_rnaget", "orm/filter_continuous.json")
+    filter_file = pkg_resources.resource_filename("candig_rnaget", "orm/filters_continuous.json")
 
     with open(filter_file, "r") as ef:
         continuos_filters = json.load(ef)
