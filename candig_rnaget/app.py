@@ -13,6 +13,7 @@ from tornado.options import define
 from candig_rnaget.api.models import BasePath
 from candig_rnaget.expression.download import tmp_download, persistent_download
 import candig_rnaget.orm
+from prometheus_flask_exporter import PrometheusMetrics
 
 
 def main(args=None):
@@ -84,6 +85,7 @@ app = configure_app()
 
 # Expose WSGI application
 application = app.app
+metrics = PrometheusMetrics(application)
 
 if __name__ == "__main__":
     main()
