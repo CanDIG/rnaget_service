@@ -1,3 +1,5 @@
+This repo is no longer under active development.
+
 # rnaget Microservice
 [![Build Status](https://travis-ci.org/CanDIG/rnaget_service.svg?branch=master)](https://travis-ci.org/CanDIG/rnaget_service)
 [![Code Coverage](https://img.shields.io/codecov/c/github/CanDIG/rnaget_service/master.svg)](https://codecov.io/gh/CanDIG/rnaget_service)
